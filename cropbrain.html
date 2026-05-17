@@ -457,6 +457,121 @@
     .bar-cell { display: none; }
     #map { height: 240px; }
   }
+
+  /* BOILER LAYER */
+  #boiler-toggle-btn {
+    position: absolute;
+    top: 10px;
+    left: 50px;
+    z-index: 1000;
+    background: rgba(250,246,240,0.93);
+    border: 1.5px solid var(--clay);
+    border-radius: 20px;
+    padding: 5px 13px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.73rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink);
+    transition: all 0.2s;
+  }
+  #boiler-toggle-btn.active {
+    background: #C0392B;
+    color: white;
+    border-color: #922b21;
+  }
+  #boiler-legend {
+    display: none;
+    margin-top: 8px;
+    border-top: 1px solid var(--parchment);
+    padding-top: 6px;
+  }
+  #boiler-legend .legend-title { color: #C0392B; }
+
+  /* BOILER DIRECTORY TAB */
+  .boiler-summary-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .boiler-stat-box {
+    background: var(--paper);
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .boiler-stat-val {
+    font-family: 'Fira Code', monospace;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #C0392B;
+    display: block;
+  }
+  .boiler-stat-lbl {
+    font-size: 0.62rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    display: block;
+    margin-top: 3px;
+  }
+  .boiler-filter-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .boiler-filter-btn {
+    padding: 5px 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--clay);
+    border-radius: 14px;
+    background: var(--paper);
+    color: var(--muted);
+    transition: all 0.2s;
+  }
+  .boiler-filter-btn.active {
+    background: var(--forest);
+    color: white;
+    border-color: var(--forest);
+  }
+  .boiler-table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+  .boiler-table th {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 7px 8px;
+    border-bottom: 2px solid var(--parchment);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .boiler-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #f5f0e8;
+    vertical-align: middle;
+  }
+  .boiler-table tr:last-child td { border-bottom: none; }
+  .boiler-table tr { cursor: pointer; transition: background 0.15s; }
+  .boiler-table tr:hover td { background: #f9f4ee; }
+  .cat-badge {
+    display: inline-block;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+  }
+  .boiler-name-cell { font-weight: 600; color: var(--ink); }
+  .boiler-notes-cell { font-size: 0.65rem; color: var(--muted); max-width: 220px; }
+  .boiler-tpa-cell { font-family: 'Fira Code', monospace; font-size: 0.68rem; color: var(--earth); }
 </style>
 </head>
 <body>
@@ -470,15 +585,28 @@
       <div class="chip">Top Crop: <strong id="chip-topcrop">Cotton</strong></div>
       <div class="chip">Districts: <strong>36</strong></div>
       <div class="chip">Crops Tracked: <strong>16</strong></div>
+      <div class="chip">🏭 <strong>50 Boiler Sites</strong></div>
+      <div class="chip">⚡ <strong>38MT Coal/yr</strong></div>
     </div>
   </div>
 </header>
 
 <div id="map-container">
   <div id="map"></div>
+  <button id="boiler-toggle-btn" onclick="toggleBoilerLayer()">🏭 Show Boilers</button>
   <div id="map-legend">
     <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
     <div id="legend-rows"></div>
+    <div id="boiler-legend">
+      <div class="legend-title">BOILER CATEGORIES</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#C0392B"></div><span>Power Plant</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#E67E22"></div><span>Cement</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#7F8C8D"></div><span>Steel</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#8B4513"></div><span>Paper</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#8E44AD"></div><span>Chemical</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2980B9"></div><span>Textile</span></div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#27AE60"></div><span>Sugar Mill</span></div>
+    </div>
   </div>
   <div id="map-fallback">
     <p>Map could not load GeoJSON. District data still available in tabs below.</p>
@@ -489,6 +617,7 @@
   <div class="tabs-nav">
     <button class="tab-btn active" onclick="switchTab('crop')">🌿 Crop Explorer</button>
     <button class="tab-btn" onclick="switchTab('district')">📍 District View</button>
+    <button class="tab-btn" onclick="switchTab('boilers')">🏭 Boiler Directory</button>
   </div>
 
   <!-- CROP EXPLORER TAB -->
@@ -532,6 +661,46 @@
           <tbody id="rank-tbody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- BOILER DIRECTORY TAB -->
+  <div class="tab-panel" id="tab-boilers">
+    <div class="boiler-summary-bar">
+      <div class="boiler-stat-box">
+        <span class="boiler-stat-val" id="boiler-total-coal">38.1M MT</span>
+        <span class="boiler-stat-lbl">Total Coal Consumption / Year</span>
+      </div>
+      <div class="boiler-stat-box">
+        <span class="boiler-stat-val" id="boiler-pellet-potential">1.9M MT</span>
+        <span class="boiler-stat-lbl">Pellet Co-firing Potential (5% blend)</span>
+      </div>
+    </div>
+    <div class="boiler-filter-bar" id="boiler-filter-bar">
+      <button class="boiler-filter-btn active" onclick="filterBoilers('All')">All</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Power Plant')">Power Plant</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Cement')">Cement</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Steel')">Steel</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Textile')">Textile</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Sugar Mill')">Sugar Mill</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Chemical')">Chemical</button>
+      <button class="boiler-filter-btn" onclick="filterBoilers('Paper')">Paper</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="boiler-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>District</th>
+            <th>Category</th>
+            <th>Capacity</th>
+            <th>Coal TPY</th>
+            <th>Pellet Demand (5%)</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="boiler-tbody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -619,6 +788,73 @@ const DISTRICTS = [
   {name:"Bhandara", lat:21.17, lng:79.65},
   {name:"Gondia", lat:21.46, lng:80.20}
 ];
+
+// ============================================================
+// BOILER DATA
+// [name, lat, lng, district, category, capacity_str, operator, coal_tpa_estimate, notes]
+// ============================================================
+const BOILERS = [
+  ["Chandrapur STPS", 20.005, 79.291, "Chandrapur", "Power Plant", "3340 MW", "MAHAGENCO", 12000000, "Largest plant in MH. MNRE co-firing mandate active. 5% pellet blend = 600,000 MT/yr demand."],
+  ["Tiroda TPS", 21.40, 79.86, "Gondia", "Power Plant", "3300 MW", "Adani Power", 11800000, "3300 MW Adani. High pellet potential. Near Vidarbha crop belt."],
+  ["Koradi TPS", 21.249, 79.099, "Nagpur", "Power Plant", "2190 MW", "MAHAGENCO", 8000000, "16,000-17,000 TPD coal. Expansion ongoing. 5% co-firing = 400,000 MT/yr."],
+  ["Khaparkheda TPS", 21.276, 79.121, "Nagpur", "Power Plant", "1340 MW", "MAHAGENCO", 5000000, "1340 MW near Nagpur. Orange/cotton belt. Good pellet logistics."],
+  ["Parli TPS", 18.869, 76.526, "Beed", "Power Plant", "1380 MW", "MAHAGENCO", 5000000, "Marathwada plant. Soybean/cotton residue zone nearby."],
+  ["Bhusawal TPS", 21.044, 75.847, "Jalgaon", "Power Plant", "1210 MW", "MAHAGENCO", 4400000, "2.4M TPY coal historically. Banana/cotton district. Key pellet target."],
+  ["RattanIndia Nashik TPS", 20.05, 73.85, "Nashik", "Power Plant", "1350 MW", "RattanIndia Power", 5000000, "1350 MW private IPP. Nashik — onion/grape district. Pellet logistics via NH3."],
+  ["Indiabulls/Adani Amravati TPS", 20.85, 77.80, "Amravati", "Power Plant", "1350 MW", "Adani Power", 5000000, "1350 MW. Core of cotton/soybean Vidarbha belt. High pellet potential."],
+  ["Nashik TPS", 19.980, 73.891, "Nashik", "Power Plant", "880 MW", "MAHAGENCO", 3200000, "880 MW. 4.6M TPY coal (2006-07). Nashik — onion/grapes. Active MNRE compliance."],
+  ["GMR Warora Energy", 20.24, 79.02, "Chandrapur", "Power Plant", "600 MW", "GMR Group", 2200000, "600 MW IPP in Chandrapur. Cotton+rice residue from East Vidarbha."],
+  ["Wardha Power", 20.75, 78.60, "Wardha", "Power Plant", "540 MW", "Wardha Power Co", 2000000, "540 MW. Wardha cotton belt. Direct supply chain opportunity."],
+  ["Paras TPS", 20.719, 76.800, "Akola", "Power Plant", "500 MW", "MAHAGENCO", 1800000, "Oldest MAHAGENCO plant. Akola — cotton capital. Pellets from cotton stalk."],
+  ["Trombay TPS", 19.040, 72.920, "Mumbai", "Power Plant", "930 MW", "Tata Power", 3400000, "930 MW Tata Power Mumbai. Progressive ESG stance. Coastal logistics advantage."],
+  ["Dhariwal Infrastructure", 21.50, 79.80, "Gondia", "Power Plant", "600 MW", "Dhariwal Infra", 2200000, "600 MW IPP Gondkhari. Rice straw from Gondia-Bhandara rice belt."],
+  ["UltraTech Cement Awarpur", 19.98, 79.28, "Chandrapur", "Cement", "2.5 MTPA", "UltraTech/Adani", 600000, "2.5 MTPA cement. 250-300 kg coal per tonne cement. 600,000 MT/yr coal."],
+  ["UltraTech Cement Hotgi", 17.58, 75.92, "Solapur", "Cement", "2.0 MTPA", "UltraTech/Adani", 480000, "2.0 MTPA. Solapur — jowar/sugarcane region. Good pellet supply potential."],
+  ["Ambuja Cement Maratha", 18.79, 73.35, "Raigad", "Cement", "2.5 MTPA", "Ambuja/Adani", 600000, "2.5 MTPA. Raigad/Konkan. Coastal logistics. Ambuja is progressive on biomass."],
+  ["Manikgarh Cement Ghugus", 19.95, 79.25, "Chandrapur", "Cement", "1.5 MTPA", "Manikgarh Cement", 360000, "1.5 MTPA. Chandrapur. Cotton stalk/arhar from surrounding districts."],
+  ["Orient Cement Devapur", 19.15, 77.35, "Nanded", "Cement", "3.0 MTPA", "Orient Cement", 720000, "3.0 MTPA. Near Nanded. Marathwada soybean/cotton stalk zone."],
+  ["Nuvoco Cement Nashik", 20.00, 73.78, "Nashik", "Cement", "1.5 MTPA", "Nuvoco Vistas", 360000, "Formerly Lafarge/Nirma. Nashik — onion/grape region. Road logistics good."],
+  ["JSW Steel Tarapur", 19.89, 72.66, "Palghar", "Steel", "1.5 MTPA", "JSW Steel", 900000, "Integrated steel. DRI uses coal. Coastal location — import parity for pellets."],
+  ["Lloyds Metals Ghugus", 19.97, 79.26, "Chandrapur", "Steel", "1.0 MTPA DRI", "Lloyds Metals", 700000, "Sponge iron/DRI. Coal-intensive. Chandrapur coal+biomass overlap zone."],
+  ["Sunflag Iron & Steel", 21.17, 79.55, "Bhandara", "Steel", "0.35 MTPA", "Sunflag Steel", 210000, "EAF + captive power. Bhandara rice belt. Rice husk pellet potential."],
+  ["Maharashtra Seamless Nagpur", 21.18, 79.09, "Nagpur", "Steel", "0.4 MTPA", "Maharashtra Seamless", 240000, "Seamless pipes. Coal-based furnaces. Nagpur orange/cotton zone."],
+  ["Kalyani Steels Mundhwa", 18.53, 73.93, "Pune", "Steel", "0.5 MTPA", "Kalyani Group", 200000, "Forging steel. Pune industrial zone. Good infrastructure for pellet delivery."],
+  ["BILT Ballarpur", 19.83, 79.35, "Chandrapur", "Paper", "Major", "Ballarpur Industries", 400000, "One of India's largest paper mills. Chandrapur. High steam demand — ideal for biomass pellets."],
+  ["Seshasayee Paper Erode", 11.34, 77.72, "Nagpur", "Paper", "0.18 MTPA", "Seshasayee", 180000, "Note: confirm location. Paper mills in MH use coal boilers for steam generation."],
+  ["Star Paper Mills Saharanpur", 21.15, 79.10, "Nagpur", "Paper", "0.1 MTPA", "Star Paper", 100000, "Paper mill. Process steam via coal boiler — pellet-ready."],
+  ["RCF Trombay", 19.04, 72.92, "Mumbai", "Chemical", "Fertilizer", "RCF Limited", 500000, "Rashtriya Chemicals & Fertilizers. Large steam/power requirement. Trombay industrial hub."],
+  ["Deepak Fertilisers Taloja", 18.94, 73.12, "Raigad", "Chemical", "Chemical", "Deepak Fertilisers", 200000, "TAN, NP, specialty chemicals. Taloja MIDC. Coal boilers for process heat."],
+  ["HPCL Mahul Refinery", 19.03, 72.90, "Mumbai", "Chemical", "Refinery", "HPCL", 300000, "Petroleum refinery. Process steam. Uses coal/gas — some pellet substitution possible."],
+  ["BPCL Mumbai Refinery", 19.02, 72.87, "Mumbai", "Chemical", "Refinery", "BPCL", 300000, "Mumbai refinery. Large boiler farm. Process steam requirement."],
+  ["Solapur Textile Cluster", 17.68, 75.90, "Solapur", "Textile", "Cluster ~50 mills", "Various", 300000, "Solapur is India's 2nd largest textile hub. ~50+ mills with coal boilers for steam. High aggregate pellet demand."],
+  ["Nagpur Textile Mills", 21.15, 79.09, "Nagpur", "Textile", "Cluster ~15 mills", "Various incl. Empress Mills", 150000, "Historic textile hub. Multiple mills with coal boilers. Cotton stalk pellets ideal."],
+  ["Ichalkaranji Textile Cluster", 16.69, 74.46, "Kolhapur", "Textile", "Cluster ~200 units", "Various powerloom", 200000, "Ichalkaranji — India's largest powerloom hub. ~200+ units. Steam via coal. High pellet opportunity."],
+  ["Bhiwandi Textile Cluster", 19.30, 73.06, "Thane", "Textile", "Cluster ~100 units", "Various", 180000, "Bhiwandi powerloom cluster. Coal boilers. Near Mumbai logistics hub."],
+  ["Sholapur Terry Towel", 17.69, 75.91, "Solapur", "Textile", "Terry towels", "Various SSI", 80000, "Terry towel manufacturers. Process steam via coal. Good pellet substitution scope."],
+  ["Vasantdada SSK Sangli", 16.86, 74.57, "Sangli", "Sugar Mill", "7500 TCD", "Vasantdada SSK", 60000, "Large cooperative. Bagasse primary + coal auxiliary boiler. Can switch to pellets for auxiliary firing."],
+  ["Warana SSK Kolhapur", 16.80, 74.08, "Kolhapur", "Sugar Mill", "9000 TCD", "Warana SSK", 70000, "9000 TCD. Kolhapur. Coal used for startup and off-season. Pellet-ready."],
+  ["Shri Datta SSK Sangli", 17.00, 74.55, "Sangli", "Sugar Mill", "5000 TCD", "Shri Datta SSK", 40000, "5000 TCD cooperative. Sangli sugarcane belt."],
+  ["Sanjivani SSK Ahmednagar", 19.08, 74.74, "Ahmednagar", "Sugar Mill", "7500 TCD", "Sanjivani SSK", 60000, "Ahmednagar cooperative. Major cogen. Coal boiler for steam."],
+  ["Godavari Biorefineries Solapur", 17.68, 75.90, "Solapur", "Sugar Mill", "15000 TCD", "Godavari Biorefineries", 120000, "India's largest sugar mill by capacity. Solapur. Large coal auxiliary boiler. High pellet demand."],
+  ["Shri Chhatrapati Rajaram SSK Kolhapur", 16.70, 74.24, "Kolhapur", "Sugar Mill", "8000 TCD", "Rajaram SSK", 65000, "Kolhapur major cooperative. 8000 TCD + cogen."],
+  ["Nira Bhima SSK Solapur", 18.05, 75.50, "Solapur", "Sugar Mill", "7500 TCD", "Nira Bhima SSK", 60000, "Solapur cooperative. Coal + bagasse cogen."],
+  ["Samarth SSK Solapur", 17.80, 75.85, "Solapur", "Sugar Mill", "6000 TCD", "Samarth SSK", 50000, "Solapur. Coal auxiliary. Pellet substitution easy."],
+  ["Sahyadri SSK Satara", 17.68, 74.00, "Satara", "Sugar Mill", "6000 TCD", "Sahyadri SSK", 50000, "Satara cooperative. Western MH sugarcane belt."],
+  ["Kolhapur Sugar Mills", 16.70, 74.22, "Kolhapur", "Sugar Mill", "5000 TCD", "KSM Ltd", 40000, "Private mill. Kolhapur. Cogen with coal backup."],
+  ["Padmashri Dr. Vitthalrao SSK Latur", 18.40, 76.57, "Latur", "Sugar Mill", "5000 TCD", "Vitthalrao SSK", 40000, "Marathwada sugar mill. Coal auxiliary boiler."],
+  ["Dnyaneshwar SSK Ahmednagar", 19.30, 74.80, "Ahmednagar", "Sugar Mill", "5000 TCD", "Dnyaneshwar SSK", 40000, "Ahmednagar. Sugarcane belt. Cogen."],
+  ["Malegaon SSK Nashik", 20.55, 74.52, "Nashik", "Sugar Mill", "5000 TCD", "Malegaon SSK", 40000, "Nashik north. Coal boiler."]
+];
+
+const BOILER_COLORS = {
+  "Power Plant": "#C0392B",
+  "Cement": "#E67E22",
+  "Steel": "#7F8C8D",
+  "Paper": "#8B4513",
+  "Chemical": "#8E44AD",
+  "Textile": "#2980B9",
+  "Sugar Mill": "#27AE60"
+};
 
 // cropData[cropName] = { emoji, season, districts: {districtName: {area, prod}} }
 const CROPS = {
@@ -832,6 +1068,9 @@ let selectedDistrict = null;
 let districtTotals = buildDistrictTotals();
 let map = null;
 let geoLayer = null;
+let boilerLayerGroup = null;
+let boilerLayerVisible = false;
+let activeBoilerFilter = 'All';
 
 // ============================================================
 // MAP
@@ -1167,12 +1406,151 @@ function loadDistrict(distName) {
 }
 
 // ============================================================
+// BOILER LAYER
+// ============================================================
+function getBoilerRadius(tpa) {
+  if (tpa > 5000000) return 16;
+  if (tpa >= 1000000) return 12;
+  if (tpa >= 500000) return 9;
+  return 6;
+}
+
+function buildBoilerPopup(b) {
+  const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
+  const color = BOILER_COLORS[category] || '#555';
+  const pellet5 = Math.round(tpa * 0.05);
+  return `
+    <div style="min-width:220px;">
+      <div style="font-weight:700;font-size:0.95rem;color:#1a1a1a;margin-bottom:4px;">${name}</div>
+      <div style="display:inline-block;background:${color};color:white;border-radius:8px;padding:2px 8px;font-size:0.62rem;font-weight:700;margin-bottom:8px;">${category}</div>
+      <div style="font-size:0.75rem;color:#555;line-height:1.6;">
+        <div><b>District:</b> ${district}</div>
+        <div><b>Capacity:</b> ${capacity}</div>
+        <div><b>Operator:</b> ${operator}</div>
+        <div><b>Coal TPY:</b> <span style="font-family:monospace;color:#C0392B;">${tpa.toLocaleString('en-IN')}</span></div>
+        <div><b>Pellet Demand (5%):</b> <span style="font-family:monospace;color:#27AE60;">${pellet5.toLocaleString('en-IN')} MT/yr</span></div>
+        <div style="margin-top:6px;color:#777;font-size:0.68rem;">${notes}</div>
+      </div>
+    </div>`;
+}
+
+function buildBoilerMarkers() {
+  if (!map) return;
+  if (boilerLayerGroup) {
+    boilerLayerGroup.clearLayers();
+  } else {
+    boilerLayerGroup = L.layerGroup();
+  }
+  BOILERS.forEach(b => {
+    const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
+    const color = BOILER_COLORS[category] || '#555';
+    const radius = getBoilerRadius(tpa);
+    const marker = L.circleMarker([lat, lng], {
+      radius: radius,
+      fillColor: color,
+      color: '#fff',
+      weight: 1.5,
+      fillOpacity: 0.88
+    });
+    marker.bindPopup(buildBoilerPopup(b), { maxWidth: 300 });
+    marker.on('click', function() {
+      map.setView([lat, lng], 9);
+      this.openPopup();
+    });
+    boilerLayerGroup.addLayer(marker);
+  });
+}
+
+function toggleBoilerLayer() {
+  const btn = document.getElementById('boiler-toggle-btn');
+  const boilerLegend = document.getElementById('boiler-legend');
+  if (!boilerLayerGroup) buildBoilerMarkers();
+  if (boilerLayerVisible) {
+    map.removeLayer(boilerLayerGroup);
+    boilerLayerVisible = false;
+    btn.textContent = '🏭 Show Boilers';
+    btn.classList.remove('active');
+    boilerLegend.style.display = 'none';
+  } else {
+    boilerLayerGroup.addTo(map);
+    boilerLayerVisible = true;
+    btn.textContent = '🏭 Hide Boilers';
+    btn.classList.add('active');
+    boilerLegend.style.display = 'block';
+  }
+}
+
+// ============================================================
+// BOILER DIRECTORY TAB
+// ============================================================
+function filterBoilers(category) {
+  activeBoilerFilter = category;
+  document.querySelectorAll('.boiler-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === category || (category === 'All' && btn.textContent === 'All'));
+  });
+  renderBoilerTable();
+}
+
+function renderBoilerTable() {
+  const tbody = document.getElementById('boiler-tbody');
+  if (!tbody) return;
+  const filtered = activeBoilerFilter === 'All'
+    ? BOILERS
+    : BOILERS.filter(b => b[4] === activeBoilerFilter);
+
+  tbody.innerHTML = '';
+  filtered.forEach(b => {
+    const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
+    const color = BOILER_COLORS[category] || '#555';
+    const pellet5 = Math.round(tpa * 0.05);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="boiler-name-cell">${name}</td>
+      <td>${district}</td>
+      <td><span class="cat-badge" style="background:${color}">${category}</span></td>
+      <td style="font-family:'Fira Code',monospace;font-size:0.68rem;">${capacity}</td>
+      <td class="boiler-tpa-cell">${(tpa/1000).toFixed(0)}K</td>
+      <td class="boiler-tpa-cell" style="color:#27AE60;">${(pellet5/1000).toFixed(0)}K MT</td>
+      <td class="boiler-notes-cell">${notes}</td>
+    `;
+    tr.onclick = () => {
+      // Switch to map, pan to boiler, show popup
+      if (!boilerLayerVisible) toggleBoilerLayer();
+      map.setView([lat, lng], 10);
+      // find and open the right marker
+      if (boilerLayerGroup) {
+        boilerLayerGroup.eachLayer(layer => {
+          const ll = layer.getLatLng();
+          if (Math.abs(ll.lat - lat) < 0.001 && Math.abs(ll.lng - lng) < 0.001) {
+            layer.openPopup();
+          }
+        });
+      }
+    };
+    tbody.appendChild(tr);
+  });
+}
+
+function buildBoilerSummary() {
+  const totalCoal = BOILERS.reduce((s, b) => s + b[7], 0);
+  const pellet5 = Math.round(totalCoal * 0.05);
+  const el1 = document.getElementById('boiler-total-coal');
+  const el2 = document.getElementById('boiler-pellet-potential');
+  if (el1) el1.textContent = (totalCoal / 1e6).toFixed(1) + 'M MT';
+  if (el2) el2.textContent = (pellet5 / 1e6).toFixed(2) + 'M MT';
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init() {
   buildCropGrid();
   buildDistrictDropdown();
   initMap();
+
+  // Boiler directory
+  buildBoilerSummary();
+  renderBoilerTable();
 
   // Compute total cultivated area for chips
   const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v,0);
