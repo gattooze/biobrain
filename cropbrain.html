@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CropBrain Maharashtra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --terra: #8B4513;
+    --forest: #2D5016;
+    --moss: #4A7C59;
+    --earth: #6B4226;
+    --clay: #C4956A;
+    --parchment: #F0E6D3;
+    --cream: #FAF6F0;
+    --paper: #FFFFFF;
+    --ink: #2C1810;
+    --muted: #8B7355;
+    --gold: #D4A853;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, var(--forest) 0%, var(--moss) 60%, var(--terra) 100%);
+    color: white;
+    padding: 18px 20px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+  .header-inner { max-width: 900px; margin: 0 auto; }
+  .header-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+  }
+  .header-title span { color: var(--gold); }
+  .header-sub {
+    font-size: 0.72rem;
+    opacity: 0.8;
+    margin-top: 2px;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .stats-chips {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+  }
+  .chip strong { color: var(--gold); }
+
+  /* MAP */
+  #map-container {
+    width: 100%;
+    background: var(--parchment);
+    border-bottom: 2px solid var(--clay);
+    position: relative;
+  }
+  #map { height: 300px; width: 100%; }
+  #map-legend {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(250,246,240,0.93);
+    border: 1px solid var(--clay);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.68rem;
+    z-index: 999;
+    min-width: 130px;
+  }
+  #map-legend .legend-title {
+    font-weight: 600;
+    color: var(--forest);
+    margin-bottom: 5px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+  }
+  .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .legend-swatch { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  #map-fallback {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  /* TABS */
+  .tabs-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 12px;
+  }
+  .tabs-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--clay);
+    margin-top: 14px;
+  }
+  .tab-btn {
+    padding: 9px 20px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .tab-btn.active {
+    color: var(--forest);
+    border-bottom-color: var(--forest);
+  }
+  .tab-btn:hover:not(.active) { color: var(--earth); }
+  .tab-panel { display: none; padding: 16px 0 40px; }
+  .tab-panel.active { display: block; }
+
+  /* CROP EXPLORER */
+  .section-label {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .crop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .crop-card {
+    background: var(--paper);
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 12px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+  }
+  .crop-card:hover {
+    border-color: var(--moss);
+    box-shadow: 0 2px 12px rgba(74,124,89,0.15);
+    transform: translateY(-1px);
+  }
+  .crop-card.selected {
+    border-color: var(--forest);
+    background: linear-gradient(135deg, #f0f7f0, #ffffff);
+    box-shadow: 0 2px 12px rgba(45,80,22,0.2);
+  }
+  .crop-emoji { font-size: 1.6rem; display: block; margin-bottom: 5px; }
+  .crop-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--earth);
+    display: block;
+  }
+  .crop-season {
+    font-size: 0.6rem;
+    color: var(--muted);
+    font-family: 'Fira Code', monospace;
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* CROP DETAIL */
+  #crop-detail {
+    display: none;
+    background: var(--paper);
+    border: 1.5px solid var(--parchment);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  #crop-detail.visible { display: block; }
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--parchment);
+  }
+  .detail-emoji { font-size: 2.2rem; }
+  .detail-crop-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--forest);
+  }
+  .detail-meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .detail-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'Fira Code', monospace;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--forest);
+    display: block;
+  }
+  .stat-lbl {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    display: block;
+    margin-top: 2px;
+  }
+  .district-rank-table { width: 100%; border-collapse: collapse; }
+  .district-rank-table th {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--parchment);
+    text-align: left;
+  }
+  .district-rank-table td {
+    font-size: 0.75rem;
+    padding: 6px 8px;
+    border-bottom: 1px solid #f5f0e8;
+    vertical-align: middle;
+  }
+  .district-rank-table tr:last-child td { border-bottom: none; }
+  .rank-num {
+    font-family: 'Fira Code', monospace;
+    color: var(--muted);
+    font-size: 0.68rem;
+  }
+  .district-link {
+    color: var(--forest);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .district-link:hover { text-decoration: underline; }
+  .bar-cell { width: 120px; }
+  .mini-bar {
+    height: 8px;
+    background: var(--moss);
+    border-radius: 4px;
+    opacity: 0.7;
+  }
+  .prod-cell {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.68rem;
+    color: var(--earth);
+  }
+
+  /* DISTRICT VIEW */
+  .district-selector-wrap {
+    margin-bottom: 16px;
+  }
+  #district-select {
+    width: 100%;
+    max-width: 320px;
+    padding: 9px 14px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.82rem;
+    border: 1.5px solid var(--clay);
+    border-radius: 8px;
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #district-select:focus { border-color: var(--moss); }
+
+  #district-detail {
+    display: none;
+    background: var(--paper);
+    border: 1.5px solid var(--parchment);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  #district-detail.visible { display: block; }
+  .district-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--parchment);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .district-name-big {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--terra);
+  }
+  .district-summary-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .d-chip {
+    background: var(--parchment);
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--earth);
+    font-family: 'Fira Code', monospace;
+  }
+  .barchart-section { margin-top: 16px; }
+  .barchart-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .hbar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .hbar-label {
+    width: 90px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--earth);
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .hbar-track {
+    flex: 1;
+    background: var(--parchment);
+    border-radius: 4px;
+    height: 14px;
+    overflow: hidden;
+  }
+  .hbar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--moss), var(--forest));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .hbar-val {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    width: 80px;
+    flex-shrink: 0;
+  }
+
+  .crop-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  .crop-table th {
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--parchment);
+    text-align: left;
+  }
+  .crop-table td {
+    font-size: 0.74rem;
+    padding: 7px 8px;
+    border-bottom: 1px solid #f5f0e8;
+    vertical-align: middle;
+  }
+  .crop-table tr:last-child td { border-bottom: none; }
+  .crop-table .state-rank {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+  .rank-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    font-family: 'Fira Code', monospace;
+  }
+  .rank-badge.r1 { background: #FFD700; }
+  .rank-badge.r2 { background: #C0C0C0; }
+  .rank-badge.r3 { background: #CD7F32; color: white; }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    border-top: 1px solid var(--parchment);
+    margin-top: 10px;
+    font-family: 'Fira Code', monospace;
+  }
+
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-size: 0.78rem !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+  }
+  .tooltip-district { font-weight: 700; color: var(--forest); font-size: 0.85rem; }
+  .tooltip-row { margin-top: 3px; color: var(--muted); }
+  .tooltip-val { font-weight: 600; color: var(--ink); font-family: 'Fira Code', monospace; }
+
+  @media (max-width: 600px) {
+    .header-title { font-size: 1.4rem; }
+    .detail-stats { grid-template-columns: 1fr 1fr; }
+    .crop-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .bar-cell { display: none; }
+    #map { height: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">Crop<span>Brain</span> Maharashtra</div>
+    <div class="header-sub">Maharashtra Crop Intelligence &nbsp;|&nbsp; 36 Districts &nbsp;|&nbsp; 16 Crops &nbsp;|&nbsp; 2021-22 Season Data</div>
+    <div class="stats-chips">
+      <div class="chip">Total Area: <strong id="chip-area">~5.2M ha</strong></div>
+      <div class="chip">Top Crop: <strong id="chip-topcrop">Cotton</strong></div>
+      <div class="chip">Districts: <strong>36</strong></div>
+      <div class="chip">Crops Tracked: <strong>16</strong></div>
+    </div>
+  </div>
+</header>
+
+<div id="map-container">
+  <div id="map"></div>
+  <div id="map-legend">
+    <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
+    <div id="legend-rows"></div>
+  </div>
+  <div id="map-fallback">
+    <p>Map could not load GeoJSON. District data still available in tabs below.</p>
+  </div>
+</div>
+
+<div class="tabs-wrapper">
+  <div class="tabs-nav">
+    <button class="tab-btn active" onclick="switchTab('crop')">🌿 Crop Explorer</button>
+    <button class="tab-btn" onclick="switchTab('district')">📍 District View</button>
+  </div>
+
+  <!-- CROP EXPLORER TAB -->
+  <div class="tab-panel active" id="tab-crop">
+    <div class="section-label">Select a crop to explore district-level data</div>
+    <div class="crop-grid" id="crop-grid"></div>
+    <div id="crop-detail">
+      <div class="detail-header">
+        <div class="detail-emoji" id="detail-emoji"></div>
+        <div>
+          <div class="detail-crop-name" id="detail-name"></div>
+          <div class="detail-meta" id="detail-meta"></div>
+        </div>
+      </div>
+      <div class="detail-stats">
+        <div class="stat-box">
+          <span class="stat-val" id="stat-area"></span>
+          <span class="stat-lbl">Total Area (Ha)</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val" id="stat-prod"></span>
+          <span class="stat-lbl">Total Production (MT)</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val" id="stat-districts"></span>
+          <span class="stat-lbl">Districts Covered</span>
+        </div>
+      </div>
+      <div class="section-label">Districts ranked by area</div>
+      <div style="overflow-x:auto;">
+        <table class="district-rank-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>District</th>
+              <th>Area (Ha)</th>
+              <th>Production (MT)</th>
+              <th class="bar-cell">Share</th>
+            </tr>
+          </thead>
+          <tbody id="rank-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISTRICT VIEW TAB -->
+  <div class="tab-panel" id="tab-district">
+    <div class="district-selector-wrap">
+      <div class="section-label" style="margin-bottom:6px;">Select a district to view crop breakdown</div>
+      <select id="district-select" onchange="loadDistrict(this.value)">
+        <option value="">— Choose a district —</option>
+      </select>
+    </div>
+    <div id="district-detail">
+      <div class="district-detail-header">
+        <div>
+          <div class="district-name-big" id="dv-name"></div>
+          <div class="district-summary-chips" id="dv-chips"></div>
+        </div>
+      </div>
+      <div class="barchart-section">
+        <div class="barchart-label">Top 5 Crops by Area</div>
+        <div id="dv-barchart"></div>
+      </div>
+      <div class="section-label" style="margin-top:16px;">All crops grown in this district</div>
+      <div style="overflow-x:auto;">
+        <table class="crop-table">
+          <thead>
+            <tr>
+              <th>Crop</th>
+              <th>Season</th>
+              <th>Area (Ha)</th>
+              <th>Production (MT)</th>
+              <th>State Rank</th>
+            </tr>
+          </thead>
+          <tbody id="dv-crop-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Data Source: Agricultural Statistics at a Glance 2022, ICRISAT District Database &nbsp;|&nbsp; CropBrain Maharashtra v1.0
+</footer>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DISTRICTS = [
+  {name:"Mumbai", lat:18.96, lng:72.83},
+  {name:"Mumbai Suburban", lat:19.07, lng:72.87},
+  {name:"Thane", lat:19.21, lng:73.02},
+  {name:"Palghar", lat:19.69, lng:72.76},
+  {name:"Raigad", lat:18.52, lng:73.18},
+  {name:"Ratnagiri", lat:17.00, lng:73.30},
+  {name:"Sindhudurg", lat:16.35, lng:73.75},
+  {name:"Nashik", lat:20.00, lng:73.78},
+  {name:"Dhule", lat:20.90, lng:74.78},
+  {name:"Nandurbar", lat:21.37, lng:74.24},
+  {name:"Jalgaon", lat:21.00, lng:75.56},
+  {name:"Ahmednagar", lat:19.08, lng:74.74},
+  {name:"Pune", lat:18.52, lng:73.86},
+  {name:"Satara", lat:17.68, lng:74.00},
+  {name:"Sangli", lat:16.86, lng:74.57},
+  {name:"Kolhapur", lat:16.70, lng:74.24},
+  {name:"Solapur", lat:17.68, lng:75.90},
+  {name:"Aurangabad", lat:19.88, lng:75.34},
+  {name:"Jalna", lat:19.84, lng:75.88},
+  {name:"Parbhani", lat:19.27, lng:76.78},
+  {name:"Hingoli", lat:19.72, lng:77.15},
+  {name:"Nanded", lat:19.15, lng:77.32},
+  {name:"Latur", lat:18.40, lng:76.57},
+  {name:"Osmanabad", lat:18.18, lng:76.04},
+  {name:"Beed", lat:18.98, lng:75.76},
+  {name:"Buldhana", lat:20.53, lng:76.18},
+  {name:"Akola", lat:20.71, lng:77.00},
+  {name:"Washim", lat:20.11, lng:77.14},
+  {name:"Amravati", lat:20.93, lng:77.75},
+  {name:"Yavatmal", lat:20.39, lng:78.12},
+  {name:"Wardha", lat:20.75, lng:78.60},
+  {name:"Nagpur", lat:21.15, lng:79.09},
+  {name:"Chandrapur", lat:19.96, lng:79.30},
+  {name:"Gadchiroli", lat:20.18, lng:80.00},
+  {name:"Bhandara", lat:21.17, lng:79.65},
+  {name:"Gondia", lat:21.46, lng:80.20}
+];
+
+// cropData[cropName] = { emoji, season, districts: {districtName: {area, prod}} }
+const CROPS = {
+  "Cotton": {
+    emoji: "🌿", season: "Kharif",
+    districts: {
+      "Yavatmal":{area:530000,prod:795000},"Amravati":{area:350000,prod:525000},"Akola":{area:310000,prod:465000},
+      "Washim":{area:200000,prod:300000},"Buldhana":{area:300000,prod:450000},"Wardha":{area:200000,prod:300000},
+      "Nagpur":{area:180000,prod:270000},"Nanded":{area:180000,prod:270000},"Latur":{area:150000,prod:225000},
+      "Osmanabad":{area:120000,prod:180000},"Beed":{area:130000,prod:195000},"Jalgaon":{area:140000,prod:210000},
+      "Jalna":{area:120000,prod:180000},"Parbhani":{area:100000,prod:150000},"Hingoli":{area:90000,prod:135000},
+      "Aurangabad":{area:110000,prod:165000},"Chandrapur":{area:80000,prod:120000},"Ahmednagar":{area:70000,prod:105000},
+      "Nashik":{area:50000,prod:75000},"Dhule":{area:50000,prod:75000},"Solapur":{area:40000,prod:60000},
+      "Sangli":{area:30000,prod:45000},"Kolhapur":{area:20000,prod:30000},"Satara":{area:20000,prod:30000}
+    }
+  },
+  "Soybean": {
+    emoji: "🫘", season: "Kharif",
+    districts: {
+      "Latur":{area:380000,prod:418000},"Osmanabad":{area:300000,prod:330000},"Beed":{area:280000,prod:308000},
+      "Amravati":{area:260000,prod:286000},"Yavatmal":{area:240000,prod:264000},"Nanded":{area:220000,prod:242000},
+      "Jalna":{area:180000,prod:198000},"Aurangabad":{area:160000,prod:176000},"Washim":{area:140000,prod:154000},
+      "Akola":{area:130000,prod:143000},"Buldhana":{area:150000,prod:165000},"Wardha":{area:120000,prod:132000},
+      "Nagpur":{area:100000,prod:110000},"Parbhani":{area:120000,prod:132000},"Hingoli":{area:100000,prod:110000},
+      "Chandrapur":{area:60000,prod:66000},"Nashik":{area:50000,prod:55000},"Dhule":{area:40000,prod:44000},
+      "Ahmednagar":{area:60000,prod:66000},"Pune":{area:40000,prod:44000},"Satara":{area:30000,prod:33000}
+    }
+  },
+  "Sugarcane": {
+    emoji: "🎋", season: "Annual",
+    districts: {
+      "Pune":{area:120000,prod:9600000},"Satara":{area:110000,prod:8800000},"Kolhapur":{area:100000,prod:8000000},
+      "Sangli":{area:90000,prod:7200000},"Solapur":{area:130000,prod:10400000},"Ahmednagar":{area:120000,prod:9600000},
+      "Nashik":{area:80000,prod:6400000},"Aurangabad":{area:50000,prod:4000000},"Jalgaon":{area:40000,prod:3200000},
+      "Beed":{area:40000,prod:3200000},"Latur":{area:30000,prod:2400000},"Nanded":{area:30000,prod:2400000},
+      "Osmanabad":{area:25000,prod:2000000},"Jalna":{area:20000,prod:1600000}
+    }
+  },
+  "Jowar": {
+    emoji: "🌾", season: "Rabi+Kharif",
+    districts: {
+      "Solapur":{area:350000,prod:350000},"Osmanabad":{area:220000,prod:220000},"Latur":{area:180000,prod:180000},
+      "Ahmednagar":{area:160000,prod:160000},"Pune":{area:140000,prod:140000},"Beed":{area:150000,prod:150000},
+      "Sangli":{area:120000,prod:120000},"Satara":{area:100000,prod:100000},"Nanded":{area:100000,prod:100000},
+      "Jalna":{area:80000,prod:80000},"Aurangabad":{area:80000,prod:80000},"Kolhapur":{area:60000,prod:60000},
+      "Nashik":{area:50000,prod:50000},"Yavatmal":{area:50000,prod:50000},"Wardha":{area:40000,prod:40000}
+    }
+  },
+  "Wheat": {
+    emoji: "🌾", season: "Rabi",
+    districts: {
+      "Nashik":{area:150000,prod:300000},"Ahmednagar":{area:130000,prod:260000},"Pune":{area:120000,prod:240000},
+      "Satara":{area:80000,prod:160000},"Jalgaon":{area:70000,prod:140000},"Dhule":{area:60000,prod:120000},
+      "Aurangabad":{area:60000,prod:120000},"Nandurbar":{area:40000,prod:80000},"Kolhapur":{area:40000,prod:80000},
+      "Sangli":{area:30000,prod:60000},"Solapur":{area:30000,prod:60000},"Jalna":{area:30000,prod:60000}
+    }
+  },
+  "Rice": {
+    emoji: "🍚", season: "Kharif",
+    districts: {
+      "Bhandara":{area:155000,prod:465000},"Gondia":{area:180000,prod:540000},"Nagpur":{area:80000,prod:240000},
+      "Raigad":{area:90000,prod:270000},"Thane":{area:70000,prod:210000},"Ratnagiri":{area:85000,prod:255000},
+      "Sindhudurg":{area:40000,prod:120000},"Palghar":{area:50000,prod:150000},"Chandrapur":{area:100000,prod:300000},
+      "Gadchiroli":{area:85000,prod:255000},"Kolhapur":{area:40000,prod:120000},"Satara":{area:30000,prod:90000}
+    }
+  },
+  "Tur": {
+    emoji: "🫘", season: "Kharif",
+    districts: {
+      "Latur":{area:180000,prod:126000},"Nanded":{area:160000,prod:112000},"Osmanabad":{area:140000,prod:98000},
+      "Yavatmal":{area:130000,prod:91000},"Beed":{area:120000,prod:84000},"Jalna":{area:90000,prod:63000},
+      "Parbhani":{area:80000,prod:56000},"Hingoli":{area:70000,prod:49000},"Aurangabad":{area:70000,prod:49000},
+      "Amravati":{area:60000,prod:42000},"Buldhana":{area:50000,prod:35000},"Nashik":{area:40000,prod:28000},
+      "Ahmednagar":{area:30000,prod:21000},"Nagpur":{area:30000,prod:21000}
+    }
+  },
+  "Maize": {
+    emoji: "🌽", season: "Kharif",
+    districts: {
+      "Nashik":{area:120000,prod:480000},"Dhule":{area:80000,prod:320000},"Jalgaon":{area:70000,prod:280000},
+      "Pune":{area:70000,prod:280000},"Ahmednagar":{area:60000,prod:240000},"Nandurbar":{area:80000,prod:320000},
+      "Solapur":{area:50000,prod:200000},"Satara":{area:40000,prod:160000},"Aurangabad":{area:40000,prod:160000},
+      "Nagpur":{area:30000,prod:120000},"Kolhapur":{area:30000,prod:120000},"Sangli":{area:25000,prod:100000}
+    }
+  },
+  "Bajra": {
+    emoji: "🌾", season: "Kharif",
+    districts: {
+      "Ahmednagar":{area:120000,prod:100000},"Nashik":{area:90000,prod:75000},"Pune":{area:80000,prod:67000},
+      "Satara":{area:60000,prod:50000},"Solapur":{area:50000,prod:42000},"Jalgaon":{area:40000,prod:33000},
+      "Dhule":{area:40000,prod:33000},"Sangli":{area:30000,prod:25000},"Kolhapur":{area:20000,prod:17000}
+    }
+  },
+  "Groundnut": {
+    emoji: "🥜", season: "Kharif",
+    districts: {
+      "Nagpur":{area:80000,prod:88000},"Akola":{area:60000,prod:66000},"Amravati":{area:60000,prod:66000},
+      "Yavatmal":{area:50000,prod:55000},"Kolhapur":{area:50000,prod:55000},"Nashik":{area:40000,prod:44000},
+      "Ahmednagar":{area:40000,prod:44000},"Sangli":{area:30000,prod:33000},"Solapur":{area:30000,prod:33000},
+      "Ratnagiri":{area:25000,prod:27500},"Sindhudurg":{area:20000,prod:22000}
+    }
+  },
+  "Onion": {
+    emoji: "🧅", season: "Rabi",
+    districts: {
+      "Nashik":{area:180000,prod:3600000},"Pune":{area:80000,prod:1600000},"Solapur":{area:70000,prod:1400000},
+      "Ahmednagar":{area:80000,prod:1600000},"Satara":{area:40000,prod:800000},"Sangli":{area:40000,prod:800000},
+      "Dhule":{area:20000,prod:400000},"Jalgaon":{area:20000,prod:400000},"Osmanabad":{area:15000,prod:300000},
+      "Latur":{area:15000,prod:300000},"Beed":{area:20000,prod:400000},"Kolhapur":{area:15000,prod:300000}
+    }
+  },
+  "Grapes": {
+    emoji: "🍇", season: "Annual",
+    districts: {
+      "Nashik":{area:60000,prod:1500000},"Pune":{area:20000,prod:500000},"Sangli":{area:15000,prod:375000},
+      "Solapur":{area:10000,prod:250000},"Ahmednagar":{area:8000,prod:200000},"Satara":{area:5000,prod:125000},
+      "Latur":{area:3000,prod:75000},"Osmanabad":{area:2000,prod:50000}
+    }
+  },
+  "Orange": {
+    emoji: "🍊", season: "Annual",
+    districts: {
+      "Nagpur":{area:80000,prod:360000},"Amravati":{area:60000,prod:270000},"Wardha":{area:30000,prod:135000},
+      "Yavatmal":{area:20000,prod:90000},"Akola":{area:15000,prod:67500},"Chandrapur":{area:10000,prod:45000},
+      "Buldhana":{area:8000,prod:36000}
+    }
+  },
+  "Banana": {
+    emoji: "🍌", season: "Annual",
+    districts: {
+      "Jalgaon":{area:35000,prod:1400000},"Solapur":{area:12000,prod:480000},"Thane":{area:5000,prod:200000},
+      "Raigad":{area:4000,prod:160000},"Nashik":{area:4000,prod:160000},"Pune":{area:3000,prod:120000},
+      "Satara":{area:3000,prod:120000},"Nandurbar":{area:4000,prod:160000}
+    }
+  },
+  "Pomegranate": {
+    emoji: "❤️", season: "Annual",
+    districts: {
+      "Solapur":{area:70000,prod:350000},"Nashik":{area:50000,prod:250000},"Sangli":{area:40000,prod:200000},
+      "Ahmednagar":{area:40000,prod:200000},"Pune":{area:25000,prod:125000},"Latur":{area:20000,prod:100000},
+      "Osmanabad":{area:15000,prod:75000},"Satara":{area:10000,prod:50000},"Beed":{area:15000,prod:75000}
+    }
+  },
+  "Turmeric": {
+    emoji: "🟡", season: "Kharif",
+    districts: {
+      "Sangli":{area:15000,prod:90000},"Satara":{area:8000,prod:48000},"Kolhapur":{area:5000,prod:30000},
+      "Pune":{area:3000,prod:18000},"Nanded":{area:4000,prod:24000},"Hingoli":{area:3000,prod:18000},
+      "Parbhani":{area:2000,prod:12000}
+    }
+  }
+};
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function fmt(n) {
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
+  return n.toString();
+}
+
+function fmtFull(n) {
+  return n.toLocaleString('en-IN');
+}
+
+// Build district total area index
+function buildDistrictTotals() {
+  const totals = {};
+  DISTRICTS.forEach(d => { totals[d.name] = 0; });
+  Object.values(CROPS).forEach(crop => {
+    Object.entries(crop.districts).forEach(([dist, val]) => {
+      if (totals[dist] !== undefined) totals[dist] += val.area;
+    });
+  });
+  return totals;
+}
+
+// Get crop totals
+function getCropTotals(cropName) {
+  const crop = CROPS[cropName];
+  let totalArea = 0, totalProd = 0;
+  const ranked = Object.entries(crop.districts)
+    .map(([dist, val]) => ({ dist, area: val.area, prod: val.prod }))
+    .sort((a,b) => b.area - a.area);
+  ranked.forEach(r => { totalArea += r.area; totalProd += r.prod; });
+  return { totalArea, totalProd, ranked };
+}
+
+// Get district crop data
+function getDistrictCrops(distName) {
+  const result = [];
+  Object.entries(CROPS).forEach(([cropName, crop]) => {
+    if (crop.districts[distName]) {
+      const { area, prod } = crop.districts[distName];
+      // compute state rank
+      const ranked = Object.entries(crop.districts).sort((a,b)=>b[1].area-a[1].area);
+      const rank = ranked.findIndex(r=>r[0]===distName) + 1;
+      result.push({ cropName, emoji: crop.emoji, season: crop.season, area, prod, rank, totalDistricts: ranked.length });
+    }
+  });
+  result.sort((a,b) => b.area - a.area);
+  return result;
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let selectedCrop = null;
+let selectedDistrict = null;
+let districtTotals = buildDistrictTotals();
+let map = null;
+let geoLayer = null;
+
+// ============================================================
+// MAP
+// ============================================================
+function initMap() {
+  map = L.map('map', {
+    center: [19.5, 76.5],
+    zoom: 6,
+    zoomControl: true,
+    scrollWheelZoom: false
+  });
+
+  // Subtle tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 10
+  }).addTo(map);
+
+  loadGeoJSON();
+}
+
+function getColor(value, max, crop) {
+  if (!value || value === 0) return '#e8e0d0';
+  const ratio = value / max;
+  if (crop) {
+    // Green scale for crops
+    const greens = ['#c7e9c0','#a1d99b','#74c476','#41ab5d','#238b45','#006d2c','#00441b'];
+    const idx = Math.min(Math.floor(ratio * greens.length), greens.length - 1);
+    return greens[idx];
+  } else {
+    // Earth/brown scale for total
+    const browns = ['#f5e6d3','#e8c9a0','#d4a853','#c4956a','#a0714a','#8B4513','#5a2d0c'];
+    const idx = Math.min(Math.floor(ratio * browns.length), browns.length - 1);
+    return browns[idx];
+  }
+}
+
+function getDistrictNameFromFeature(feature) {
+  // Try multiple property name conventions
+  const p = feature.properties;
+  return p.district || p.DISTRICT || p.NAME_2 || p.name || p.NAME || p.District || '';
+}
+
+function matchDistrictName(geoName) {
+  // Normalize and match
+  const norm = s => s.toLowerCase().replace(/[\s\-_\.]/g,'').replace(/^mumbai$/,'mumbai');
+  const gn = norm(geoName);
+  // Direct match
+  const direct = DISTRICTS.find(d => norm(d.name) === gn);
+  if (direct) return direct.name;
+  // Partial match
+  const partial = DISTRICTS.find(d => gn.includes(norm(d.name)) || norm(d.name).includes(gn));
+  if (partial) return partial.name;
+  // Special cases
+  const special = {
+    'mumbaisuburban': 'Mumbai Suburban',
+    'mumbaisuburbandistrict': 'Mumbai Suburban',
+    'greatermumai': 'Mumbai',
+    'osmanabad': 'Osmanabad',
+    'aurangabad': 'Aurangabad',
+    'ahmadnagar': 'Ahmednagar',
+    'ahmednagar': 'Ahmednagar',
+  };
+  if (special[gn]) return special[gn];
+  return null;
+}
+
+function loadGeoJSON() {
+  fetch('https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/state_ut/maharashtra/district/maharashtra_district.json')
+    .then(r => {
+      if (!r.ok) throw new Error('Network error');
+      return r.json();
+    })
+    .then(data => {
+      renderGeoLayer(data);
+    })
+    .catch(() => {
+      // Show fallback message but keep map
+      document.getElementById('map-fallback').style.display = 'block';
+      renderFallbackMarkers();
+    });
+}
+
+function renderGeoLayer(data) {
+  if (geoLayer) { map.removeLayer(geoLayer); }
+
+  const values = selectedCrop
+    ? Object.entries(CROPS[selectedCrop].districts).reduce((acc, [k,v]) => { acc[k]=v.area; return acc; }, {})
+    : districtTotals;
+  const max = Math.max(...Object.values(values));
+
+  geoLayer = L.geoJSON(data, {
+    style: feature => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const distName = matchDistrictName(geoName);
+      const val = distName ? (values[distName] || 0) : 0;
+      return {
+        fillColor: getColor(val, max, !!selectedCrop),
+        weight: 1,
+        color: '#a08060',
+        fillOpacity: 0.75
+      };
+    },
+    onEachFeature: (feature, layer) => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const distName = matchDistrictName(geoName) || geoName;
+      layer.on({
+        mouseover: e => {
+          const l = e.target;
+          l.setStyle({ weight: 2.5, color: '#5a2d0c', fillOpacity: 0.9 });
+          l.bringToFront();
+          showTooltip(l, distName);
+        },
+        mouseout: e => {
+          geoLayer.resetStyle(e.target);
+        },
+        click: () => {
+          const matched = matchDistrictName(geoName);
+          if (matched) selectDistrict(matched);
+        }
+      });
+    }
+  }).addTo(map);
+
+  updateLegend(max);
+  map.fitBounds(geoLayer.getBounds());
+}
+
+function showTooltip(layer, distName) {
+  let content = `<div class="tooltip-district">${distName}</div>`;
+  if (selectedCrop) {
+    const cd = CROPS[selectedCrop].districts[distName];
+    if (cd) {
+      content += `<div class="tooltip-row">${selectedCrop} Area: <span class="tooltip-val">${fmtFull(cd.area)} ha</span></div>`;
+      content += `<div class="tooltip-row">Production: <span class="tooltip-val">${fmtFull(cd.prod)} MT</span></div>`;
+    } else {
+      content += `<div class="tooltip-row" style="color:#aaa">No ${selectedCrop} data</div>`;
+    }
+  } else {
+    const total = districtTotals[distName] || 0;
+    content += `<div class="tooltip-row">Total Cultivated: <span class="tooltip-val">${fmtFull(total)} ha</span></div>`;
+    content += `<div class="tooltip-row" style="font-size:0.65rem;color:#aaa;margin-top:3px;">Click to view district</div>`;
+  }
+  layer.bindPopup(content, { closeButton: false, offset: [0, -4] }).openPopup();
+}
+
+function renderFallbackMarkers() {
+  DISTRICTS.forEach(d => {
+    const val = districtTotals[d.name] || 0;
+    L.circleMarker([d.lat, d.lng], {
+      radius: 6 + Math.sqrt(val/50000),
+      fillColor: '#4A7C59',
+      color: '#2D5016',
+      weight: 1,
+      fillOpacity: 0.7
+    }).addTo(map).bindPopup(`<b>${d.name}</b><br>Area: ${fmtFull(val)} ha`);
+  });
+}
+
+function updateLegend(max) {
+  const isCrop = !!selectedCrop;
+  document.getElementById('legend-title').textContent = isCrop ? `${selectedCrop.toUpperCase()} AREA (Ha)` : 'TOTAL AREA (Ha)';
+  const colors = isCrop
+    ? ['#c7e9c0','#74c476','#41ab5d','#238b45','#00441b']
+    : ['#f5e6d3','#e8c9a0','#d4a853','#a0714a','#5a2d0c'];
+  const labels = [0,0.2,0.4,0.6,0.8].map(f => fmt(Math.round(f*max)));
+  const rows = colors.map((c,i) => `<div class="legend-row"><div class="legend-swatch" style="background:${c}"></div><span>${labels[i]}+</span></div>`).join('');
+  document.getElementById('legend-rows').innerHTML = rows;
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+// ============================================================
+// CROP EXPLORER
+// ============================================================
+function buildCropGrid() {
+  const grid = document.getElementById('crop-grid');
+  Object.entries(CROPS).forEach(([name, crop]) => {
+    const card = document.createElement('div');
+    card.className = 'crop-card';
+    card.id = `crop-card-${name}`;
+    card.innerHTML = `<span class="crop-emoji">${crop.emoji}</span><span class="crop-name">${name}</span><span class="crop-season">${crop.season}</span>`;
+    card.onclick = () => selectCrop(name);
+    grid.appendChild(card);
+  });
+}
+
+function selectCrop(cropName) {
+  // Deselect previous
+  document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`crop-card-${cropName}`).classList.add('selected');
+  selectedCrop = cropName;
+
+  const crop = CROPS[cropName];
+  const { totalArea, totalProd, ranked } = getCropTotals(cropName);
+  const maxArea = ranked[0]?.area || 1;
+
+  document.getElementById('crop-detail').classList.add('visible');
+  document.getElementById('detail-emoji').textContent = crop.emoji;
+  document.getElementById('detail-name').textContent = cropName;
+  document.getElementById('detail-meta').textContent = `Season: ${crop.season} · Major crop of Maharashtra`;
+  document.getElementById('stat-area').textContent = fmt(totalArea);
+  document.getElementById('stat-prod').textContent = fmt(totalProd);
+  document.getElementById('stat-districts').textContent = ranked.length;
+
+  // Build rank table
+  const tbody = document.getElementById('rank-tbody');
+  tbody.innerHTML = '';
+  ranked.forEach((r, i) => {
+    const barWidth = Math.round((r.area / maxArea) * 100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="rank-num">${i+1}</td>
+      <td><a class="district-link" onclick="selectDistrict('${r.dist}')">${r.dist}</a></td>
+      <td><span style="font-family:'Fira Code',monospace;font-size:0.72rem;">${fmtFull(r.area)}</span></td>
+      <td class="prod-cell">${fmtFull(r.prod)}</td>
+      <td class="bar-cell"><div class="mini-bar" style="width:${barWidth}%"></div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Update map
+  if (geoLayer && map) {
+    const values = Object.entries(crop.districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{});
+    const max = Math.max(...Object.values(values));
+    geoLayer.setStyle(feature => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const distName = matchDistrictName(geoName);
+      const val = distName ? (values[distName] || 0) : 0;
+      return {
+        fillColor: getColor(val, max, true),
+        weight: 1,
+        color: '#a08060',
+        fillOpacity: 0.75
+      };
+    });
+    updateLegend(max);
+  }
+}
+
+// ============================================================
+// DISTRICT VIEW
+// ============================================================
+function buildDistrictDropdown() {
+  const sel = document.getElementById('district-select');
+  DISTRICTS.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}
+
+function selectDistrict(distName) {
+  selectedDistrict = distName;
+  switchTab('district');
+  document.getElementById('district-select').value = distName;
+  loadDistrict(distName);
+}
+
+function loadDistrict(distName) {
+  if (!distName) { document.getElementById('district-detail').classList.remove('visible'); return; }
+
+  const crops = getDistrictCrops(distName);
+  const totalArea = crops.reduce((s,c)=>s+c.area, 0);
+  const dominant = crops[0];
+
+  document.getElementById('district-detail').classList.add('visible');
+  document.getElementById('dv-name').textContent = distName;
+
+  // Chips
+  document.getElementById('dv-chips').innerHTML = `
+    <div class="d-chip">Area: ${fmtFull(totalArea)} ha</div>
+    <div class="d-chip">Dominant: ${dominant?.emoji || ''} ${dominant?.cropName || 'N/A'}</div>
+    <div class="d-chip">Crops: ${crops.length}</div>
+  `;
+
+  // Bar chart top 5
+  const top5 = crops.slice(0,5);
+  const maxArea = top5[0]?.area || 1;
+  const bc = document.getElementById('dv-barchart');
+  bc.innerHTML = top5.map(c => {
+    const pct = Math.round((c.area/maxArea)*100);
+    return `<div class="hbar-row">
+      <div class="hbar-label">${c.emoji} ${c.cropName}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div>
+      <div class="hbar-val">${fmt(c.area)} ha</div>
+    </div>`;
+  }).join('');
+
+  // Table
+  const tbody = document.getElementById('dv-crop-tbody');
+  tbody.innerHTML = '';
+  crops.forEach(c => {
+    const badgeClass = c.rank===1?'r1':c.rank===2?'r2':c.rank===3?'r3':'';
+    const badge = c.rank<=3 ? `<span class="rank-badge ${badgeClass}">#${c.rank}</span>` : `<span class="state-rank">#${c.rank}</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="margin-right:5px">${c.emoji}</span><strong style="cursor:pointer;color:var(--earth)" onclick="selectCrop('${c.cropName}')">${c.cropName}</strong></td>
+      <td><span style="font-family:'Fira Code',monospace;font-size:0.65rem;color:var(--muted)">${c.season}</span></td>
+      <td style="font-family:'Fira Code',monospace;font-size:0.72rem">${fmtFull(c.area)}</td>
+      <td style="font-family:'Fira Code',monospace;font-size:0.72rem;color:var(--earth)">${fmtFull(c.prod)}</td>
+      <td>${badge} <span style="font-size:0.6rem;color:var(--muted)">of ${c.totalDistricts}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Update map highlight
+  if (geoLayer) {
+    geoLayer.setStyle(feature => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const dn = matchDistrictName(geoName);
+      const isSelected = dn === distName;
+      const total = dn ? (districtTotals[dn] || 0) : 0;
+      const max = Math.max(...Object.values(districtTotals));
+      return {
+        fillColor: isSelected ? '#D4A853' : getColor(total, max, false),
+        weight: isSelected ? 3 : 1,
+        color: isSelected ? '#5a2d0c' : '#a08060',
+        fillOpacity: isSelected ? 0.9 : 0.65
+      };
+    });
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  buildCropGrid();
+  buildDistrictDropdown();
+  initMap();
+
+  // Compute total cultivated area for chips
+  const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v,0);
+  document.getElementById('chip-area').textContent = fmt(totalAll) + ' ha';
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
