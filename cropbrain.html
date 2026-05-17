@@ -587,6 +587,7 @@
       <div class="chip">Crops Tracked: <strong>16</strong></div>
       <div class="chip">🏭 <strong>50 Boiler Sites</strong></div>
       <div class="chip">⚡ <strong>38MT Coal/yr</strong></div>
+      <div class="chip">🏗️ <strong>90+ Industrial Sites</strong></div>
     </div>
   </div>
 </header>
@@ -594,6 +595,7 @@
 <div id="map-container">
   <div id="map"></div>
   <button id="boiler-toggle-btn" onclick="toggleBoilerLayer()">🏭 Show Boilers</button>
+  <button id="btn-industries" onclick="toggleIndustries()" style="position:absolute;top:10px;left:165px;z-index:1000;background:rgba(250,246,240,0.93);border:1.5px solid var(--clay);border-radius:20px;padding:5px 13px;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.73rem;font-weight:600;cursor:pointer;color:var(--ink);transition:all 0.2s;">🏗️ Industries</button>
   <div id="map-legend">
     <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
     <div id="legend-rows"></div>
@@ -618,6 +620,7 @@
     <button class="tab-btn active" onclick="switchTab('crop')">🌿 Crop Explorer</button>
     <button class="tab-btn" onclick="switchTab('district')">📍 District View</button>
     <button class="tab-btn" onclick="switchTab('boilers')">🏭 Boiler Directory</button>
+    <button class="tab-btn" onclick="switchTab('industries')">🏗️ Industries</button>
   </div>
 
   <!-- CROP EXPLORER TAB -->
@@ -700,6 +703,21 @@
           </tr>
         </thead>
         <tbody id="boiler-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INDUSTRIES TAB -->
+  <div class="tab-panel" id="tab-industries">
+    <div id="ind-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="ind-filters"></div>
+    <div style="overflow-x:auto">
+      <table class="boiler-table" id="ind-table">
+        <thead><tr>
+          <th>Company</th><th>District</th><th>Industry</th>
+          <th>Boiler TPH</th><th>Coal MT/yr</th><th>Pellet 5% MT/yr</th>
+        </tr></thead>
+        <tbody id="ind-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -854,6 +872,117 @@ const BOILER_COLORS = {
   "Chemical": "#8E44AD",
   "Textile": "#2980B9",
   "Sugar Mill": "#27AE60"
+};
+
+const IND_BOILERS = [
+["Godavari Biorefineries Sameerwadi",17.19,75.74,"Solapur","Sugar Mill",120,"Bagasse+Coal",90000,4500,"Sameerwadi, Solapur","India's largest sugar mill 15000 TCD. Coal auxiliary boiler. Prime pellet target."],
+["Warana SSK Warananagar",16.80,74.08,"Kolhapur","Sugar Mill",100,"Bagasse+Coal",70000,3500,"Warananagar, Kolhapur","9000 TCD. Integrated dairy-sugar complex. Coal auxiliary for off-season."],
+["Vasantdada SSK Islampur",16.98,74.34,"Sangli","Sugar Mill",80,"Bagasse+Coal",60000,3000,"Islampur, Sangli","7500 TCD. Sangli sugarcane belt. Coal boiler startup + cogen."],
+["Sanjivani SSK Kopergaon",19.71,74.47,"Ahmednagar","Sugar Mill",80,"Bagasse+Coal",60000,3000,"Kopergaon, Ahmednagar","7500 TCD cooperative. Active biomass interest."],
+["Pravaranagar SSK",19.62,74.44,"Ahmednagar","Sugar Mill",70,"Bagasse+Coal",55000,2750,"Pravaranagar, Ahmednagar","Padmashri Vikhe Patil SSK. Major coop. Coal auxiliary."],
+["Datta Sugar Shirol",16.80,74.83,"Kolhapur","Sugar Mill",70,"Bagasse+Coal",55000,2750,"Shirol, Kolhapur","Private sugar mill. Coal + bagasse boilers."],
+["Chhatrapati Rajaram SSK",16.72,74.28,"Kolhapur","Sugar Mill",75,"Bagasse+Coal",58000,2900,"Rukadi, Kolhapur","8000 TCD. Kolhapur major cooperative."],
+["Pandharpur Sugar Solapur",17.68,75.32,"Solapur","Sugar Mill",60,"Bagasse+Coal",48000,2400,"Pandharpur, Solapur","5000 TCD. Coal auxiliary boiler."],
+["Bhima SSK Yevat",18.11,74.47,"Pune","Sugar Mill",65,"Bagasse+Coal",50000,2500,"Yevat, Pune","6000 TCD. Pune cooperative."],
+["Nira Bhima SSK",18.05,75.50,"Solapur","Sugar Mill",60,"Bagasse+Coal",47000,2350,"Natepute, Solapur","7500 TCD cooperative. Coal auxiliary."],
+["Loknete Marutrao Ghule SSK",20.55,74.52,"Nashik","Sugar Mill",70,"Bagasse+Coal",55000,2750,"Malegaon, Nashik","7500 TCD. North Nashik. Coal boiler."],
+["Kisan Veer SSK Wai",17.95,73.88,"Satara","Sugar Mill",60,"Bagasse+Coal",48000,2400,"Wai, Satara","6500 TCD. Satara belt."],
+["Dnyaneshwar SSK Ahmednagar",19.30,74.80,"Ahmednagar","Sugar Mill",55,"Bagasse+Coal",43000,2150,"Shrirampur, Ahmednagar","5000 TCD."],
+["Gulabrao Patil SSK Jalgaon",21.05,75.58,"Jalgaon","Sugar Mill",55,"Bagasse+Coal",43000,2150,"Jalgaon","5000 TCD."],
+["Tilaknagar Industries",19.38,74.49,"Ahmednagar","Distillery",40,"Coal+FO",30000,1500,"Shrirampur, Ahmednagar","India's largest IMFL distillery. 150ML capacity. High steam demand."],
+["Som Distilleries Pune",18.52,73.88,"Pune","Distillery",25,"Coal+FO",18000,900,"Pune","IMFL distillery. Process steam. Coal boiler."],
+["Jagatjit Distillery Nashik",20.08,73.85,"Nashik","Distillery",20,"Coal+FO",15000,750,"Nashik MIDC","IMFL production. Steam for distillation."],
+["United Spirits Aurangabad",19.87,75.34,"Aurangabad","Distillery",20,"Coal+FO",15000,750,"Waluj MIDC, Aurangabad","Diageo/USTL plant. Distillation steam."],
+["Indospirit Latur",18.40,76.57,"Latur","Distillery",15,"Coal+FO",12000,600,"Latur","Marathwada distillery. Coal boiler for steam."],
+["Sun Pharma Ahmednagar",19.08,74.74,"Ahmednagar","Pharma",15,"Coal+FO",10000,500,"Ahmednagar MIDC","Large API plant. Autoclave + reactor steam."],
+["Lupin Tarapur",19.89,72.67,"Palghar","Pharma",12,"Coal+FO",8500,425,"Tarapur MIDC, Palghar","Lupin API manufacturing. FO/coal boiler."],
+["Wockhardt Aurangabad",19.83,75.28,"Aurangabad","Pharma",20,"Coal+FO",14000,700,"Waluj MIDC, Aurangabad","Wockhardt injectables. Large sterile mfg."],
+["Glenmark Aurangabad",19.84,75.30,"Aurangabad","Pharma",12,"Coal+FO",8500,425,"Shendra MIDC, Aurangabad","Glenmark formulations. Coal/FO."],
+["Cipla Kurkumbh",18.20,74.62,"Pune","Pharma",20,"Coal+FO",14000,700,"Kurkumbh MIDC, Pune","Cipla bulk drugs. Large process steam."],
+["Abbott Nashik",20.01,73.78,"Nashik","Pharma",10,"Coal+FO",7000,350,"Satpur MIDC, Nashik","Abbott manufacturing."],
+["Piramal Pharma Thane",19.21,73.02,"Thane","Pharma",12,"Coal+FO",8500,425,"Thane MIDC","Piramal pharma solutions. Contract mfg."],
+["Alkem Labs Badlapur",19.16,73.24,"Thane","Pharma",10,"Coal+FO",7000,350,"Badlapur MIDC","API + formulations."],
+["Pfizer Thane",19.22,73.05,"Thane","Pharma",8,"Coal+FO",5500,275,"Turbhe MIDC","Pfizer manufacturing. Steam for sterilisation."],
+["Emcure Pharma Pune",18.59,73.74,"Pune","Pharma",10,"Coal+FO",7000,350,"Hinjewadi, Pune","Emcure injectables. Autoclave steam."],
+["Cadila Aurangabad",19.85,75.32,"Aurangabad","Pharma",10,"Coal+FO",7000,350,"Aurangabad MIDC","Zydus Lifesciences. Formulations."],
+["Ipca Laboratories Waluj",19.86,75.31,"Aurangabad","Pharma",10,"Coal+FO",7000,350,"Waluj MIDC","API + formulations."],
+["Bharat Serums Ambernath",19.20,73.18,"Thane","Pharma",8,"Coal+FO",5500,275,"Ambernath MIDC","Biologics manufacturing. Autoclave steam."],
+["RCF Trombay",19.04,72.92,"Mumbai","Chemical",200,"Coal+Gas",150000,7500,"Trombay, Mumbai","Rashtriya Chemicals & Fertilizers. Largest industrial steam user in MH."],
+["Hindustan Organic Chemicals Rasayani",18.71,73.13,"Raigad","Chemical",50,"Coal+FO",37000,1850,"Rasayani, Raigad","HOC. Phenol, acetone. Large coal boiler."],
+["Deepak Fertilisers Taloja",18.94,73.12,"Raigad","Chemical",40,"Coal+FO",30000,1500,"Taloja MIDC, Raigad","TAN, AN, NP fertiliser. Process steam."],
+["BASF India Navi Mumbai",19.03,73.02,"Thane","Chemical",20,"Coal+FO",14000,700,"TTC MIDC Turbhe","BASF specialty chemicals. Process heat."],
+["Camlin Fine Chemicals Tarapur",19.87,72.64,"Palghar","Chemical",12,"Coal+FO",8500,425,"Tarapur MIDC","Specialty chemicals. FO boiler."],
+["Supreme Petrochem Raigad",18.80,73.17,"Raigad","Chemical",15,"Coal+FO",10500,525,"Amdoshi, Raigad","Expandable polystyrene. Steam for processing."],
+["Godrej Industries Vikhroli",19.10,72.91,"Mumbai","Chemical",30,"Coal+FO",22000,1100,"Vikhroli, Mumbai","Oleo chemicals, surfactants. Large boiler farm."],
+["HPCL Mahul Refinery",19.03,72.89,"Mumbai","Chemical",100,"FO+Coal",70000,3500,"Mahul, Mumbai","HPCL refinery. Large process steam."],
+["Coromandel International Latur",18.42,76.60,"Latur","Chemical",15,"Coal+FO",10500,525,"Latur","Fertiliser + crop protection. Process steam."],
+["UPL Nashik",20.02,73.76,"Nashik","Chemical",10,"Coal+FO",7000,350,"Nashik MIDC","Agrochem formulations. Process heat."],
+["Britannia Industries Pune",18.54,73.86,"Pune","Food Processing",20,"Coal+FO",14000,700,"Ranjangaon MIDC, Pune","Biscuit/bread manufacturing. Coal boiler."],
+["Parle Products Baramati",18.15,74.57,"Pune","Food Processing",15,"Coal+FO",10500,525,"Baramati MIDC, Pune","Biscuits. Baking ovens. Coal fired."],
+["PepsiCo Chakan",18.61,73.73,"Pune","Food Processing",12,"Coal+FO",8500,425,"Chakan, Pune","Snack food. Coal/FO boiler."],
+["Nestle Pune",18.53,73.87,"Pune","Food Processing",20,"Coal+FO",14000,700,"Bhosari MIDC, Pune","Noodles, dairy, beverages. Large boiler."],
+["Marico Jalgaon",21.00,75.56,"Jalgaon","Food Processing",12,"Coal+FO",8500,425,"Jalgaon MIDC","Parachute coconut oil. Extraction steam."],
+["Cargill India Chakan",18.55,73.75,"Pune","Food Processing",15,"Coal+FO",10500,525,"Chakan, Pune","Edible oils. Extraction + refining. Coal steam."],
+["ITC Agri Nashik",20.00,73.78,"Nashik","Food Processing",10,"Coal+FO",7000,350,"Nashik MIDC","Spices processing. Drying steam."],
+["Chitale Dairy Bhilawadi",17.06,74.44,"Sangli","Dairy",20,"Coal+FO",14000,700,"Bhilawadi, Sangli","Major Maharashtra dairy. Spray drying. Coal boiler."],
+["Parag Milk Foods Manchar",18.84,74.00,"Pune","Dairy",15,"Coal+FO",10500,525,"Manchar, Pune","Go cheese, Gowardhan. Spray drying. Coal."],
+["Gokul Dairy Kolhapur",16.74,74.22,"Kolhapur","Dairy",12,"Coal+FO",8500,425,"Kolhapur","Major Kolhapur dairy. Spray drying."],
+["Warana Dairy",16.82,74.10,"Kolhapur","Dairy",10,"Coal+FO",7000,350,"Warananagar, Kolhapur","Cooperative dairy."],
+["Mahananda Dairy Mumbai",19.14,72.86,"Mumbai","Dairy",20,"Coal+FO",14000,700,"Bhandup, Mumbai","Maharashtra govt dairy. Large pasteurisation."],
+["Raymond Thane",19.21,73.02,"Thane","Textile",30,"Coal+FO",22000,1100,"Thane","Raymond woollen. Large fabric processing. Coal boiler."],
+["Ichalkaranji Powerloom Cluster",16.69,74.46,"Kolhapur","Textile",200,"Coal+FO",150000,7500,"Ichalkaranji, Kolhapur","India's largest powerloom hub. 250k+ units. High aggregate pellet potential."],
+["Malegaon Powerloom Cluster",20.55,74.52,"Nashik","Textile",100,"Coal+FO",75000,3750,"Malegaon, Nashik","500k+ powerloom units. Large aggregate steam demand."],
+["Bhiwandi Powerloom Cluster",19.30,73.06,"Thane","Textile",150,"Coal+FO",110000,5500,"Bhiwandi, Thane","Largest powerloom cluster near Mumbai. High logistics advantage."],
+["Solapur Textile Mills",17.68,75.90,"Solapur","Textile",80,"Coal+FO",60000,3000,"Solapur","Terry towel + cotton textile. ~50 mills. Coal boilers."],
+["Century Textiles Nagpur",21.10,79.10,"Nagpur","Textile",20,"Coal+FO",14000,700,"Nagpur","Birla Group textiles. Coal boiler."],
+["Kolhapur Foundry Cluster",16.70,74.24,"Kolhapur","Foundry",300,"Coke+Coal",220000,11000,"Shiroli MIDC, Kolhapur","300+ grey iron foundries. Cupola furnaces. India's largest foundry cluster."],
+["Pune Foundry Cluster Bhosari",18.64,73.85,"Pune","Foundry",80,"Coke+Coal",58000,2900,"Bhosari MIDC, Pune","100+ foundries. Auto component casting."],
+["Nashik Foundry Cluster",20.00,73.78,"Nashik","Foundry",40,"Coke+Coal",29000,1450,"Ambad MIDC, Nashik","Auto casting. Mahindra OEM suppliers."],
+["Nagpur Foundry Butibori",21.07,79.07,"Nagpur","Foundry",30,"Coke+Coal",22000,1100,"Butibori, Nagpur","Sponge iron + foundry cluster."],
+["Aurangabad Foundry Cluster",19.84,75.34,"Aurangabad","Foundry",30,"Coke+Coal",22000,1100,"Waluj MIDC, Aurangabad","Auto casting for Bajaj, Endurance."],
+["Nashik Brick Kiln Cluster",20.00,73.70,"Nashik","Brick Kiln",50,"Coal",35000,1750,"Nashik district","~100 brick kilns. Coal/lignite firing. Pellets are direct substitute."],
+["Pune Brick Kiln Cluster",18.40,73.70,"Pune","Brick Kiln",80,"Coal",56000,2800,"Pune district","~150 kilns. Urban construction demand. Coal-fired BTK kilns."],
+["Solapur Brick Kiln Cluster",17.60,75.80,"Solapur","Brick Kiln",40,"Coal",28000,1400,"Solapur district","~80 kilns. Coal-fired."],
+["Nagpur Brick Kiln Cluster",21.05,78.90,"Nagpur","Brick Kiln",60,"Coal",42000,2100,"Nagpur district","~120 kilns. Construction boom."],
+["Aurangabad Brick Kiln Cluster",19.78,75.24,"Aurangabad","Brick Kiln",35,"Coal",24500,1225,"Aurangabad district","~70 kilns. Coal-fired."],
+["Latur-Osmanabad Brick Cluster",18.35,76.50,"Latur","Brick Kiln",30,"Coal",21000,1050,"Latur-Osmanabad","~60 kilns across Marathwada."],
+["Gondia Rice Mill Cluster",21.46,80.20,"Gondia","Rice Mill",40,"Coal+Husk",28000,1400,"Gondia","200+ rice mills. Parboiling steam. Coal + husk."],
+["Bhandara Rice Mill Cluster",21.17,79.65,"Bhandara","Rice Mill",35,"Coal+Husk",24500,1225,"Bhandara","150+ mills. Rice parboiling. Coal/husk."],
+["Nagpur Rice Mill Cluster",21.15,79.09,"Nagpur","Rice Mill",20,"Coal+Husk",14000,700,"Nagpur","Trading + parboiling. Coal boilers."],
+["Raigad Rice Mill Cluster",18.52,73.18,"Raigad","Rice Mill",15,"Coal+Husk",10500,525,"Roha, Raigad","Konkan rice parboiling. Coal/husk boilers."],
+["Sahyadri Starch Nashik",20.10,73.80,"Nashik","Starch/Glucose",20,"Coal",14000,700,"Nashik MIDC","Corn starch processing. Coal boiler for steam."],
+["Roquette India Nashik",20.02,73.78,"Nashik","Starch/Glucose",15,"Coal",10500,525,"Nashik MIDC","French MNC. Pharma excipients + starch."],
+["Sukhjit Starch Pune",18.55,73.75,"Pune","Starch/Glucose",15,"Coal",10500,525,"Chakan, Pune","Glucose + starch. Corn wet milling."],
+["Ceat Tyres Nashik",19.98,73.79,"Nashik","Rubber",25,"Coal+FO",17500,875,"Nashik","CEAT tyre plant. Vulcanisation steam. Coal/FO."],
+["Apollo Tyres Chakan",18.62,73.72,"Pune","Rubber",20,"Coal+FO",14000,700,"Chakan, Pune","Tyre manufacturing. Vulcanisation."],
+["MRF Nashik",19.99,73.78,"Nashik","Rubber",15,"Coal+FO",10500,525,"Nashik","MRF tyres. Vulcanisation steam."],
+["Latur Oilseed Cluster",18.40,76.57,"Latur","Oil Mill",30,"Coal",21000,1050,"Latur MIDC","Soybean solvent extraction. Steam for desolventising."],
+["Osmanabad Oilseed Cluster",18.18,76.04,"Osmanabad","Oil Mill",25,"Coal",17500,875,"Osmanabad","Soybean + sunflower extraction."],
+["Akola Oilseed Cluster",20.71,77.00,"Akola","Oil Mill",25,"Coal",17500,875,"Akola","Cotton seed oil extraction. Vidarbha."],
+["BILT Ballarpur",19.83,79.35,"Chandrapur","Paper",150,"Coal+Bagasse",110000,5500,"Ballarpur, Chandrapur","India's largest paper mill. High steam. Coal primary. Prime pellet opportunity."],
+["Emami Paper Nashik",20.00,73.80,"Nashik","Paper",30,"Coal",21000,1050,"Nashik","Paper + paperboard. Coal boiler."],
+["Greenply Pune",18.58,73.77,"Pune","Plywood",15,"Coal+Husk",10000,500,"Pimpri, Pune","MDF + plywood. Drying kilns."],
+["Kalumetals Ceramics Nashik",19.97,73.78,"Nashik","Ceramics",15,"Coal",10500,525,"Sinnar, Nashik","Refractory ceramics. Kiln firing."],
+["Vidarbha Ceramics Butibori",21.08,79.05,"Nagpur","Ceramics",10,"Coal",7000,350,"Butibori, Nagpur","Industrial ceramics. Coal kiln."]
+];
+
+const IND_BOILER_COLORS = {
+  "Sugar Mill":    "#27AE60",
+  "Distillery":   "#F39C12",
+  "Pharma":       "#8E44AD",
+  "Chemical":     "#2980B9",
+  "Food Processing": "#E74C3C",
+  "Dairy":        "#1ABC9C",
+  "Textile":      "#D35400",
+  "Foundry":      "#7F8C8D",
+  "Brick Kiln":   "#A0522D",
+  "Rice Mill":    "#F1C40F",
+  "Starch/Glucose":"#16A085",
+  "Ceramics":     "#BDC3C7",
+  "Rubber":       "#2C3E50",
+  "Oil Mill":     "#E67E22",
+  "Paper":        "#95A5A6",
+  "Plywood":      "#6D4C41"
 };
 
 // cropData[cropName] = { emoji, season, districts: {districtName: {area, prod}} }
@@ -1406,6 +1535,49 @@ function loadDistrict(distName) {
 }
 
 // ============================================================
+// INDUSTRIES LAYER
+// ============================================================
+let indLayer = null, indVisible = false;
+function toggleIndustries() {
+  var btn = document.getElementById('btn-industries');
+  if (!indVisible) {
+    if (!indLayer) {
+      indLayer = L.layerGroup();
+      IND_BOILERS.forEach(function(b) {
+        var tph = b[5];
+        var r = tph > 100 ? 14 : tph > 50 ? 11 : tph > 20 ? 8 : 5;
+        var col = IND_BOILER_COLORS[b[4]] || '#888';
+        var mk = L.circleMarker([b[1], b[2]], {
+          radius: r, color: '#fff', weight: 1,
+          fillColor: col, fillOpacity: 0.85
+        });
+        mk.bindPopup(
+          '<b>' + b[0] + '</b><br>' +
+          '<span style="background:' + col + ';color:#fff;padding:1px 6px;border-radius:3px;font-size:.7rem">' + b[4] + '</span> &nbsp;' + b[3] + '<br>' +
+          'Boiler: <b>' + b[5] + ' TPH</b> &nbsp;|&nbsp; Fuel: ' + b[6] + '<br>' +
+          'Coal equiv: <b>' + b[7].toLocaleString() + ' MT/yr</b><br>' +
+          '🌿 Pellet demand (5%): <b>' + b[8].toLocaleString() + ' MT/yr</b><br>' +
+          '📍 ' + b[9] + '<br><i style="font-size:.75rem">' + b[10] + '</i>'
+        );
+        mk.on('click', function() { map.setView([b[1], b[2]], 10); });
+        indLayer.addLayer(mk);
+      });
+    }
+    indLayer.addTo(map);
+    indVisible = true;
+    btn.style.background = 'var(--forest)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--forest)';
+  } else {
+    map.removeLayer(indLayer);
+    indVisible = false;
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+}
+
+// ============================================================
 // BOILER LAYER
 // ============================================================
 function getBoilerRadius(tpa) {
@@ -1541,6 +1713,78 @@ function buildBoilerSummary() {
 }
 
 // ============================================================
+// INDUSTRIES TAB
+// ============================================================
+function buildIndustriesTab() {
+  var totalCoal = IND_BOILERS.reduce(function(s,b){return s+b[7];},0);
+  var totalPellet = IND_BOILERS.reduce(function(s,b){return s+b[8];},0);
+  var summary = document.getElementById('ind-summary');
+  if (summary) {
+    summary.innerHTML =
+      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
+        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Industrial Sites</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:var(--terra)">' + IND_BOILERS.length + '</div>' +
+      '</div>' +
+      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
+        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total Coal/yr</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:var(--terra)">' + (totalCoal/1e6).toFixed(1) + 'M MT</div>' +
+      '</div>' +
+      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
+        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pellet Potential (5%)</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:var(--forest)">' + Math.round(totalPellet/1000) + 'K MT/yr</div>' +
+      '</div>';
+  }
+
+  var cats = [];
+  IND_BOILERS.forEach(function(b){ if(cats.indexOf(b[4])===-1) cats.push(b[4]); });
+  cats.sort();
+  var filterDiv = document.getElementById('ind-filters');
+  if (filterDiv) {
+    filterDiv.innerHTML = '<button onclick="filterInd(\'\')" style="padding:4px 10px;border-radius:12px;border:1px solid var(--parchment);background:var(--terra);color:#fff;cursor:pointer;font-size:.75rem">All</button> ' +
+      cats.map(function(c){
+        return '<button onclick="filterInd(\''+c+'\')" style="padding:4px 10px;border-radius:12px;border:1px solid var(--parchment);background:'+(IND_BOILER_COLORS[c]||'#888')+';color:#fff;cursor:pointer;font-size:.75rem">'+c+'</button>';
+      }).join(' ');
+  }
+
+  renderIndTable('');
+}
+
+function filterInd(cat) {
+  renderIndTable(cat);
+}
+
+function renderIndTable(cat) {
+  var tbody = document.getElementById('ind-tbody');
+  if (!tbody) return;
+  var rows = IND_BOILERS.filter(function(b){ return !cat || b[4]===cat; });
+  rows.sort(function(a,b){ return b[7]-a[7]; });
+  tbody.innerHTML = rows.map(function(b){
+    var col = IND_BOILER_COLORS[b[4]]||'#888';
+    return '<tr style="cursor:pointer" onclick="focusInd('+b[1]+','+b[2]+',\''+b[0].replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">' +
+      '<td class="boiler-name-cell">' + b[0] + '</td>' +
+      '<td>' + b[3] + '</td>' +
+      '<td><span class="cat-badge" style="background:'+col+'">'+b[4]+'</span></td>' +
+      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem">' + b[5] + '</td>' +
+      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem;color:var(--earth)">' + b[7].toLocaleString() + '</td>' +
+      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem;color:var(--forest);font-weight:600">' + b[8].toLocaleString() + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function focusInd(lat,lng,name) {
+  switchTab('industries');
+  if (!indVisible) toggleIndustries();
+  map.setView([lat,lng], 11);
+  if (indLayer) {
+    indLayer.eachLayer(function(lyr){
+      if (lyr.getPopup && lyr.getPopup() && lyr.getPopup().getContent().indexOf(name) > -1) {
+        lyr.openPopup();
+      }
+    });
+  }
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init() {
@@ -1551,6 +1795,9 @@ function init() {
   // Boiler directory
   buildBoilerSummary();
   renderBoilerTable();
+
+  // Industries tab
+  buildIndustriesTab();
 
   // Compute total cultivated area for chips
   const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v,0);
