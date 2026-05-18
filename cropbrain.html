@@ -606,6 +606,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
           <div style="font-size:0.58rem;color:var(--muted);margin-top:5px;border-top:1px solid var(--border);padding-top:4px;">
             Source: NASA GIBS · MODIS/VIIRS · No API key required
           </div>
+          <!-- GEE Custom Layer -->
+          <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">
+            <div style="font-size:0.62rem;font-weight:700;color:var(--forest);margin-bottom:4px;">🛰️ GEE Custom Layer</div>
+            <div style="font-size:0.58rem;color:var(--muted);margin-bottom:5px;">Paste tile URL from GEE Code Editor → Map.addLayer → get tile URL from browser DevTools Network tab</div>
+            <div style="display:flex;gap:4px;">
+              <input id="gee-url-input" type="text" placeholder="https://earthengine.googleapis.com/v1/…/tiles/{z}/{x}/{y}"
+                style="flex:1;font-size:0.6rem;padding:3px 6px;border:1px solid var(--border);border-radius:5px;outline:none;font-family:monospace;color:var(--ink);" />
+              <button onclick="loadGeeLayer()" style="font-size:0.6rem;padding:3px 7px;background:var(--forest);color:#fff;border:none;border-radius:5px;cursor:pointer;">Load</button>
+              <button onclick="clearGeeLayer()" style="font-size:0.6rem;padding:3px 6px;background:var(--muted);color:#fff;border:none;border-radius:5px;cursor:pointer;">✕</button>
+            </div>
+            <div id="gee-status" style="font-size:0.58rem;color:var(--muted);margin-top:3px;"></div>
+          </div>
         </div>
       </div>
 
@@ -765,7 +777,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
         </div>
         <div class="tbl-wrap">
           <table class="data-table">
-            <thead><tr><th>Name</th><th>District</th><th>Type</th><th>Coal K MT/yr</th><th>Pellet K MT</th></tr></thead>
+            <thead><tr><th>Name</th><th>District</th><th>Type</th><th>Coal K MT/yr</th><th>Pellet K MT</th><th id="boiler-dist-th" style="display:none">Road km</th></tr></thead>
             <tbody id="boiler-tbody"></tbody>
           </table>
         </div>
@@ -777,7 +789,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
         <div id="ind-filters"></div>
         <div class="tbl-wrap">
           <table class="data-table" id="ind-table">
-            <thead><tr><th>Company</th><th>District</th><th>Industry</th><th>TPH</th><th>Coal MT/yr</th><th>Pellet 5%</th></tr></thead>
+            <thead><tr><th>Company</th><th>District</th><th>Industry</th><th>TPH</th><th>Coal MT/yr</th><th>Pellet 5%</th><th id="ind-dist-th" style="display:none">Road km</th></tr></thead>
             <tbody id="ind-tbody"></tbody>
           </table>
         </div>
@@ -1347,6 +1359,9 @@ let searchMarker = null;
 let radiusCircle = null;
 let currentLoc = null; // {lat, lng, name}
 let currentRadius = 50; // km
+let assessmentToken = 0; // incremented each search; stale async renders abort on mismatch
+let pinBoilerDists = {}; // key: "lat,lng" → { road_km, drive_hr } or null  — ALL boilers after a search
+let pinIndDists = {};    // same for industrial boilers
 
 // ============================================================
 // MAP INIT
@@ -1359,10 +1374,18 @@ function initMap() {
     scrollWheelZoom: true
   });
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  // Esri World Imagery — satellite as primary basemap
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP and the GIS User Community",
+    maxZoom: 19
+  }).addTo(map);
+
+  // Labels-only overlay on top so district names / roads remain readable
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
     attribution: "© CartoDB",
     subdomains: "abcd",
-    maxZoom: 18
+    maxZoom: 19,
+    pane: "shadowPane"  // renders above tiles, below markers
   }).addTo(map);
 
   loadGeoJSON();
@@ -1422,14 +1445,22 @@ function renderGeoLayer(data) {
       const geoName = getDistrictNameFromFeature(feature);
       const distName = matchDistrictName(geoName);
       const val = distName ? (values[distName] || 0) : 0;
-      return { fillColor: getColor(val, max, !!selectedCrop), weight: 1, color: "#a08060", fillOpacity: 0.72 };
+      // Districts are soft watermark overlaid on satellite imagery
+      // When a crop is selected show a light colour tint (max 0.45); otherwise transparent
+      const fillOpacity = selectedCrop && val > 0 ? 0.35 * (val / max) + 0.05 : 0;
+      return {
+        fillColor: getColor(val, max, !!selectedCrop),
+        weight: 0.8,
+        color: "rgba(255,255,255,0.55)",
+        fillOpacity
+      };
     },
     onEachFeature: (feature, layer) => {
       const geoName = getDistrictNameFromFeature(feature);
       const distName = matchDistrictName(geoName) || geoName;
       layer.on({
         mouseover: e => {
-          e.target.setStyle({ weight: 2.5, color: "#5a2d0c", fillOpacity: 0.9 });
+          e.target.setStyle({ weight: 2, color: "rgba(255,255,255,0.9)", fillOpacity: selectedCrop ? 0.5 : 0.12 });
           e.target.bringToFront();
           showTooltip(layer, distName);
         },
@@ -1729,9 +1760,23 @@ document.querySelectorAll(".radius-pill").forEach(btn => {
 // SITE ASSESSMENT ENGINE
 // ============================================================
 async function updateSiteAssessment(lat, lng, name, sub) {
+  // Increment token — any in-flight call from a previous search will see a stale token and abort
+  const myToken = ++assessmentToken;
+
+  // ── Synchronous DOM reset FIRST (no await yet) ──────────────────────────────
   document.getElementById("loc-name").textContent = name;
   document.getElementById("loc-sub").textContent = sub || `${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E`;
   document.getElementById("a-radius-label").textContent = `within ${currentRadius} km`;
+  // Show loading placeholders so stale data never lingers
+  const loadingMsg = `<div class="assess-empty" style="color:var(--muted)">⏳ Calculating…</div>`;
+  document.getElementById("residue-list").innerHTML = loadingMsg;
+  document.getElementById("power-customer-list").innerHTML = loadingMsg;
+  document.getElementById("ind-customer-list").innerHTML = loadingMsg;
+  document.getElementById("a-residue").textContent = "…";
+  document.getElementById("a-power-demand").textContent = "…";
+  document.getElementById("a-power-count").textContent = "…";
+  document.getElementById("a-ind-count").textContent = "…";
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Find districts within radius
   const nearDistricts = DISTRICTS
@@ -1758,35 +1803,53 @@ async function updateSiteAssessment(lat, lng, name, sub) {
     return { ...d, residue, topCrop: cropBreakdown[0] };
   }).sort((a, b) => b.residue - a.residue);
 
-  // Find power boilers within radius
+  // Find power boilers within radius (for assessment panel)
   const nearBoilers = BOILERS
     .map(b => ({ b, dist: haversine(lat, lng, b[1], b[2]) }))
     .filter(x => x.dist <= currentRadius)
     .sort((a, b) => a.dist - b.dist);
 
-  // Fetch road distances for boilers (OSRM batch)
-  const boilerTargets = nearBoilers.slice(0, 20).map(x => ({ lat: x.b[1], lng: x.b[2], idx: BOILERS.indexOf(x.b) }));
-  const boilerRoads = boilerTargets.length > 0
-    ? await batchRoadDistances(lat, lng, boilerTargets)
-    : [];
-  const boilerRoadMap = {};
-  boilerRoads.forEach(r => { boilerRoadMap[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
+  // Also pre-fetch road distances for ALL boilers (for the directory tabs)
+  const allBoilerTargets = BOILERS.map(b => ({ lat: b[1], lng: b[2] }));
 
-  // Find industrial boilers within radius
+  // Find industrial boilers within radius (for assessment panel)
   const nearInd = IND_BOILERS
     .map(b => ({ b, dist: haversine(lat, lng, b[1], b[2]) }))
     .filter(x => x.dist <= currentRadius)
     .sort((a, b) => a.dist - b.dist);
 
-  const indTargets = nearInd.slice(0, 30).map(x => ({ lat: x.b[1], lng: x.b[2] }));
-  const indRoads = indTargets.length > 0
-    ? await batchRoadDistances(lat, lng, indTargets)
-    : [];
+  // All industrial targets for directory tab sorting
+  const allIndTargets = IND_BOILERS.map(b => ({ lat: b[1], lng: b[2] }));
+
+  // ── Await OSRM road distances ─────────────────────────────────────────────
+  // Batch: assessment panel boilers (top 20 near) + all directory boilers
+  const boilerTargets = nearBoilers.slice(0, 20).map(x => ({ lat: x.b[1], lng: x.b[2] }));
+  const indTargets    = nearInd.slice(0, 30).map(x => ({ lat: x.b[1], lng: x.b[2] }));
+
+  const [boilerRoads, indRoads, allBoilerRoads, allIndRoads] = await Promise.all([
+    boilerTargets.length > 0 ? batchRoadDistances(lat, lng, boilerTargets) : [],
+    indTargets.length > 0    ? batchRoadDistances(lat, lng, indTargets)    : [],
+    batchRoadDistances(lat, lng, allBoilerTargets),
+    batchRoadDistances(lat, lng, allIndTargets)
+  ]);
+
+  // Stale check — a newer search started while we were awaiting
+  if (myToken !== assessmentToken) return;
+
+  // Build local road maps for assessment panel
+  const boilerRoadMap = {};
+  boilerRoads.forEach(r => { boilerRoadMap[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
   const indRoadMap = {};
   indRoads.forEach(r => { indRoadMap[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
 
+  // Populate global dist maps for directory tabs (all boilers, not just near)
+  pinBoilerDists = {};
+  allBoilerRoads.forEach(r => { pinBoilerDists[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
+  pinIndDists = {};
+  allIndRoads.forEach(r => { pinIndDists[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
+
   const totalPowerPellet = nearBoilers.reduce((s, x) => s + Math.round(x.b[7] * 0.05), 0);
-  const totalIndPellet = nearInd.reduce((s, x) => s + x.b[8], 0);
+  const totalIndPellet   = nearInd.reduce((s, x) => s + x.b[8], 0);
 
   // Update summary cards
   document.getElementById("a-residue").textContent = fmt(totalResidue);
@@ -1845,6 +1908,10 @@ async function updateSiteAssessment(lat, lng, name, sub) {
       </div>`;
     }).join("");
   }
+
+  // Refresh directory tabs so they sort by road distance from pin
+  renderBoilerTable();
+  renderIndTable(document.querySelector("#ind-filters .f-btn.active")?.dataset?.cat || "");
 }
 
 function focusBoilerOnMap(lat, lng) {
@@ -2035,19 +2102,42 @@ function filterBoilers(category) {
 function renderBoilerTable() {
   const tbody = document.getElementById("boiler-tbody");
   if (!tbody) return;
-  const filtered = activeBoilerFilter === "All" ? BOILERS : BOILERS.filter(b => b[4] === activeBoilerFilter);
+  const hasPinDist = Object.keys(pinBoilerDists).length > 0;
+  // Show/hide distance column header
+  const distTh = document.getElementById("boiler-dist-th");
+  if (distTh) distTh.style.display = hasPinDist ? "" : "none";
+
+  let filtered = activeBoilerFilter === "All" ? [...BOILERS] : BOILERS.filter(b => b[4] === activeBoilerFilter);
+
+  if (hasPinDist) {
+    // Sort by road distance (or haversine fallback if OSRM not returned)
+    filtered.sort((a, b) => {
+      const ka = `${a[1].toFixed(4)},${a[2].toFixed(4)}`;
+      const kb = `${b[1].toFixed(4)},${b[2].toFixed(4)}`;
+      const ra = pinBoilerDists[ka]; const rb = pinBoilerDists[kb];
+      const da = ra?.road_km ? parseFloat(ra.road_km) : Infinity;
+      const db = rb?.road_km ? parseFloat(rb.road_km) : Infinity;
+      return da - db;
+    });
+  }
+
   tbody.innerHTML = "";
   filtered.forEach(b => {
     const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
     const color = BOILER_COLORS[category] || "#555";
     const pellet5 = Math.round(tpa * 0.05);
+    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const road = pinBoilerDists[key];
+    const distCell = hasPinDist
+      ? `<td class="mono-val" style="color:var(--muted);font-size:0.72rem">${road?.road_km ? road.road_km + " km" : "—"}</td>`
+      : "";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td style="font-weight:600;color:var(--ink)">${name}</td>
       <td>${district}</td>
       <td><span class="cat-badge" style="background:${color}">${category}</span></td>
       <td class="mono-val">${(tpa/1000).toFixed(0)}K</td>
-      <td class="mono-green">${(pellet5/1000).toFixed(0)}K</td>`;
+      <td class="mono-green">${(pellet5/1000).toFixed(0)}K</td>${distCell}`;
     tr.onclick = () => focusBoilerOnMap(lat, lng);
     tbody.appendChild(tr);
   });
@@ -2078,28 +2168,60 @@ function buildIndustriesTab() {
   const cats = [...new Set(IND_BOILERS.map(b => b[4]))].sort();
   const filterDiv = document.getElementById("ind-filters");
   if (filterDiv) {
-    filterDiv.innerHTML = `<button class="f-btn active" onclick="filterInd('')" style="background:var(--terra);color:#fff;border-color:var(--terra)">All</button> ` +
-      cats.map(c => `<button class="f-btn" onclick="filterInd('${c}')" style="background:${IND_BOILER_COLORS[c]||'#888'};color:#fff;border-color:${IND_BOILER_COLORS[c]||'#888'}">${c}</button>`).join(" ");
+    filterDiv.innerHTML = `<button class="f-btn active" data-cat="" onclick="filterInd('')" style="background:var(--terra);color:#fff;border-color:var(--terra)">All</button> ` +
+      cats.map(c => `<button class="f-btn" data-cat="${c}" onclick="filterInd('${c}')" style="background:${IND_BOILER_COLORS[c]||'#888'};color:#fff;border-color:${IND_BOILER_COLORS[c]||'#888'}">${c}</button>`).join(" ");
   }
   renderIndTable("");
 }
 
-function filterInd(cat) { renderIndTable(cat); }
+let activeIndFilter = ""; // track current industry category filter
+
+function filterInd(cat) {
+  activeIndFilter = cat;
+  // Update active button state
+  document.querySelectorAll("#ind-filters .f-btn").forEach(btn => {
+    btn.classList.toggle("active",
+      (cat === "" && btn.textContent === "All") || btn.textContent === cat);
+  });
+  renderIndTable(cat);
+}
 
 function renderIndTable(cat) {
   const tbody = document.getElementById("ind-tbody");
   if (!tbody) return;
-  const rows = IND_BOILERS.filter(b => !cat || b[4] === cat);
-  rows.sort((a,b) => b[7]-a[7]);
+  const hasPinDist = Object.keys(pinIndDists).length > 0;
+  const distTh = document.getElementById("ind-dist-th");
+  if (distTh) distTh.style.display = hasPinDist ? "" : "none";
+
+  let rows = IND_BOILERS.filter(b => !cat || b[4] === cat);
+
+  if (hasPinDist) {
+    rows.sort((a, b) => {
+      const ka = `${a[1].toFixed(4)},${a[2].toFixed(4)}`;
+      const kb = `${b[1].toFixed(4)},${b[2].toFixed(4)}`;
+      const ra = pinIndDists[ka]; const rb = pinIndDists[kb];
+      const da = ra?.road_km ? parseFloat(ra.road_km) : Infinity;
+      const db = rb?.road_km ? parseFloat(rb.road_km) : Infinity;
+      return da - db;
+    });
+  } else {
+    rows.sort((a, b) => b[7] - a[7]); // default: sort by coal MT desc
+  }
+
   tbody.innerHTML = rows.map(b => {
     const col = IND_BOILER_COLORS[b[4]] || "#888";
+    const key = `${b[1].toFixed(4)},${b[2].toFixed(4)}`;
+    const road = pinIndDists[key];
+    const distCell = hasPinDist
+      ? `<td class="mono-val" style="text-align:right;color:var(--muted);font-size:0.72rem">${road?.road_km ? road.road_km + " km" : "—"}</td>`
+      : "";
     return `<tr style="cursor:pointer" onclick="focusIndOnMap(${b[1]},${b[2]})">
       <td style="font-weight:600;color:var(--ink)">${b[0]}</td>
       <td>${b[3]}</td>
       <td><span class="cat-badge" style="background:${col}">${b[4]}</span></td>
       <td class="mono-val" style="text-align:right">${b[5]}</td>
       <td class="mono-val" style="text-align:right">${b[7].toLocaleString()}</td>
-      <td class="mono-green" style="text-align:right">${b[8].toLocaleString()}</td>
+      <td class="mono-green" style="text-align:right">${b[8].toLocaleString()}</td>${distCell}
     </tr>`;
   }).join("");
 }
@@ -2313,6 +2435,66 @@ function updateSatSeasonInfo() {
   }
 }
 
+
+// ============================================================
+// GEE CUSTOM LAYER — paste tile URL from GEE Code Editor
+// ============================================================
+let geeLayer = null;
+
+function loadGeeLayer() {
+  const url = document.getElementById("gee-url-input").value.trim();
+  const status = document.getElementById("gee-status");
+  if (!url) { status.textContent = "⚠️ Enter a tile URL first"; status.style.color = "#c0392b"; return; }
+
+  if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
+  try {
+    geeLayer = L.tileLayer(url, {
+      opacity: 0.8,
+      maxZoom: 18,
+      attribution: "Google Earth Engine"
+    });
+    geeLayer.addTo(map);
+    status.textContent = "✅ GEE layer loaded";
+    status.style.color = "var(--forest)";
+  } catch(e) {
+    status.textContent = "❌ Invalid URL — " + e.message;
+    status.style.color = "#c0392b";
+  }
+}
+
+function clearGeeLayer() {
+  if (geeLayer) { map.removeLayer(geeLayer); geeLayer = null; }
+  document.getElementById("gee-url-input").value = "";
+  document.getElementById("gee-status").textContent = "Layer cleared";
+  document.getElementById("gee-status").style.color = "var(--muted)";
+}
+
+/* HOW TO GET THE GEE TILE URL:
+   1. Open GEE Code Editor (code.earthengine.google.com)
+   2. Run script (see below) → map layer appears
+   3. In Chrome DevTools → Network tab → filter "tiles"
+   4. Copy the URL pattern — replace the last 3 segments with {z}/{x}/{y}
+   5. Paste into the GEE Layer input above and click Load
+
+   ── Sentinel-2 NDVI Crop Map for Maharashtra ──────────────
+   var maha = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017')
+     .filter(ee.Filter.eq('country_na','India'))
+     .geometry().intersection(
+       ee.Geometry.Rectangle([72.6,15.6,80.9,22.1])
+     );
+   var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+     .filterDate('2024-11-01','2025-02-28')  // Rabi season
+     .filterBounds(maha)
+     .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',20))
+     .median()
+     .clip(maha);
+   var ndvi = s2.normalizedDifference(['B8','B4']).rename('NDVI');
+   var ndviVis = {min:-0.1, max:0.8,
+     palette:['#8B4513','#D4A853','#ADDD8E','#31A354','#006837']};
+   Map.centerObject(maha, 7);
+   Map.addLayer(ndvi, ndviVis, 'Sentinel-2 NDVI (Rabi 2024-25)');
+   ──────────────────────────────────────────────────────────
+*/
 
 // ============================================================
 // MAHABHUMI LAND RECORDS — Silent background fetch
