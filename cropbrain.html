@@ -524,8 +524,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
   body{overflow:auto;}
 }
 
-.sat-month-btn {
-  padding: 3px 8px;
+.sat-month-btn, .sat-mode-btn {
+  padding: 3px 7px;
   font-size: 0.65rem;
   font-weight: 600;
   cursor: pointer;
@@ -535,8 +535,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
   color: var(--mid);
   font-family: 'DM Sans', sans-serif;
   transition: all 0.15s;
+  white-space: nowrap;
 }
-.sat-month-btn.active {
+.sat-month-btn.active, .sat-mode-btn.active {
   background: var(--forest);
   color: white;
   border-color: var(--forest);
@@ -584,21 +585,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
         <button class="layer-btn" id="btn-power" onclick="togglePowerBoilers()">⚡ Power Boilers</button>
         <button class="layer-btn" id="btn-ind" onclick="toggleIndustries()">🏗️ Industrial Sites</button>
         <button class="layer-btn" id="btn-sat" onclick="toggleSatellite()">🛰️ Satellite NDVI</button>
-        <div id="sat-controls" style="display:none;background:rgba(255,255,255,0.93);backdrop-filter:blur(6px);border-radius:10px;padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.14);">
-          <div style="font-size:0.65rem;font-weight:700;color:var(--forest);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em;">MODIS NDVI · NASA GIBS</div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
-            <button class="sat-month-btn active" data-date="2024-11-09" onclick="setSatDate(this,'2024-11-09')">Nov 24</button>
-            <button class="sat-month-btn" data-date="2024-09-13" onclick="setSatDate(this,'2024-09-13')">Sep 24</button>
-            <button class="sat-month-btn" data-date="2024-07-04" onclick="setSatDate(this,'2024-07-04')">Jul 24</button>
-            <button class="sat-month-btn" data-date="2024-01-09" onclick="setSatDate(this,'2024-01-09')">Jan 24</button>
-            <button class="sat-month-btn" data-date="2023-11-09" onclick="setSatDate(this,'2023-11-09')">Nov 23</button>
+        <div id="sat-controls" style="display:none;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border-radius:10px;padding:10px 13px;box-shadow:0 2px 16px rgba(0,0,0,0.16);min-width:260px;">
+          <!-- Mode tabs -->
+          <div style="display:flex;gap:4px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:7px;">
+            <button class="sat-mode-btn active" onclick="setSatMode(this,'ndvi')" style="flex:1">🟢 NDVI</button>
+            <button class="sat-mode-btn" onclick="setSatMode(this,'truecolor')" style="flex:1">📷 True Color</button>
+            <button class="sat-mode-btn" onclick="setSatMode(this,'lst')" style="flex:1">🌡️ Temp</button>
           </div>
-          <div id="ndvi-legend-bar" style="display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--mid);">
-            <span>Low</span>
-            <div style="flex:1;height:8px;border-radius:4px;background:linear-gradient(to right,#8B4513,#D4A853,#ADDD8E,#31A354,#006837);"></div>
-            <span>High NDVI</span>
+          <!-- Date selector (populated dynamically) -->
+          <div id="sat-date-row" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="sat-date-btns"></div>
+          <!-- Legend bar -->
+          <div id="sat-legend-bar" style="display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--mid);margin-bottom:5px;">
+            <span id="sat-leg-lo">Low</span>
+            <div id="sat-leg-grad" style="flex:1;height:7px;border-radius:3px;background:linear-gradient(to right,#8B4513,#D4A853,#ADDD8E,#31A354,#006837);"></div>
+            <span id="sat-leg-hi">High NDVI</span>
           </div>
-          <div style="font-size:0.6rem;color:var(--muted);margin-top:4px;">Kharif peak: Sep–Nov · Rabi: Jan–Mar</div>
+          <!-- Season context & crop inference -->
+          <div id="sat-season-info" style="font-size:0.62rem;color:var(--muted);line-height:1.4;"></div>
+          <div id="sat-peak-crops" style="font-size:0.62rem;color:var(--forest);font-weight:600;margin-top:3px;"></div>
+          <div style="font-size:0.58rem;color:var(--muted);margin-top:5px;border-top:1px solid var(--border);padding-top:4px;">
+            Source: NASA GIBS · MODIS/VIIRS · No API key required
+          </div>
         </div>
       </div>
 
@@ -1688,6 +1695,8 @@ function setLocationPin(lat, lng, name, sub) {
     dashArray: "6 4"
   }).addTo(map);
 
+  // Silently fetch Mahabhumi land record in background (stored, not displayed yet)
+  fetchMahabhumi(lat, lng);
   // Update assessment panel
   updateSiteAssessment(lat, lng, name, sub);
   document.getElementById("site-assessment").classList.add("visible", "fade-in");
@@ -2097,56 +2106,164 @@ function renderIndTable(cat) {
 
 
 // ============================================================
-// SATELLITE LAYER — NASA GIBS (MODIS NDVI, no auth required)
+// SATELLITE LAYER — NASA GIBS (MODIS/VIIRS, no auth required)
 // ============================================================
-let satLayer = null, satVisible = false, currentSatDate = '2024-11-09';
+let satLayer = null, satVisible = false;
+let currentSatDate = null;
+let currentSatMode = 'ndvi'; // 'ndvi' | 'truecolor' | 'lst'
 
-// CROP CALENDAR: month → expected growth stage per crop
-// Kharif sown Jun-Jul, harvested Oct-Nov
-// Rabi sown Nov-Dec, harvested Mar-Apr
+// CROP CALENDAR: month number → crops at peak growth
 const CROP_CALENDAR = {
-  "Cotton":     { peak: [9,10,11], sow: [6,7], harvest: [11,12,1] },
-  "Soybean":    { peak: [8,9,10],  sow: [6,7], harvest: [10,11]   },
-  "Rice":       { peak: [8,9,10],  sow: [6,7], harvest: [10,11]   },
-  "Jowar":      { peak: [9,10],    sow: [6,7], harvest: [11]       },
-  "Maize":      { peak: [8,9],     sow: [6,7], harvest: [10]       },
-  "Sugarcane":  { peak: [1,2,3,4,5,6,7,8,9,10,11,12], sow: [2,3], harvest: [11,12,1,2] },
-  "Wheat":      { peak: [1,2,3],   sow: [11,12], harvest: [3,4]   },
-  "Tur":        { peak: [10,11],   sow: [6,7],  harvest: [11,12]  },
-  "Onion":      { peak: [12,1,2],  sow: [10,11], harvest: [2,3]   },
-  "Bajra":      { peak: [8,9],     sow: [6,7],  harvest: [9,10]   },
-  "Groundnut":  { peak: [8,9,10],  sow: [6,7],  harvest: [10,11]  }
+  "Cotton":    { peak:[9,10,11],   sow:[6,7],    harvest:[11,12,1],  emoji:"🌿" },
+  "Soybean":   { peak:[8,9,10],    sow:[6,7],    harvest:[10,11],    emoji:"🫘" },
+  "Rice":      { peak:[8,9,10],    sow:[6,7],    harvest:[10,11],    emoji:"🍚" },
+  "Jowar":     { peak:[9,10],      sow:[6,7],    harvest:[11],       emoji:"🌾" },
+  "Maize":     { peak:[8,9],       sow:[6,7],    harvest:[10],       emoji:"🌽" },
+  "Sugarcane": { peak:[1,2,3,4,5,6,7,8,9,10,11,12], sow:[2,3], harvest:[11,12,1,2], emoji:"🎋" },
+  "Wheat":     { peak:[1,2,3],     sow:[11,12],  harvest:[3,4],      emoji:"🌾" },
+  "Tur":       { peak:[10,11],     sow:[6,7],    harvest:[11,12],    emoji:"🫘" },
+  "Onion":     { peak:[12,1,2],    sow:[10,11],  harvest:[2,3],      emoji:"🧅" },
+  "Bajra":     { peak:[8,9],       sow:[6,7],    harvest:[9,10],     emoji:"🌾" },
+  "Groundnut": { peak:[8,9,10],    sow:[6,7],    harvest:[10,11],    emoji:"🥜" }
 };
+
+// Satellite mode configs
+const SAT_MODES = {
+  ndvi: {
+    layer: 'MODIS_Terra_NDVI_8Day',
+    format: 'image/png',
+    timed: true,
+    opacity: 0.75,
+    legendLo: 'Low (bare/dry)',
+    legendHi: 'High (dense crop)',
+    legendGrad: 'linear-gradient(to right,#8B4513,#D4A853,#ADDD8E,#31A354,#006837)',
+    label: 'MODIS NDVI 8-Day · 250m',
+    period: 8 // days
+  },
+  truecolor: {
+    layer: 'MODIS_Terra_CorrectedReflectance_TrueColor',
+    format: 'image/jpeg',
+    timed: true,
+    opacity: 1.0,
+    legendLo: '',
+    legendHi: '',
+    legendGrad: '',
+    label: 'MODIS True Color · Daily · 250m',
+    period: 1
+  },
+  lst: {
+    layer: 'MODIS_Terra_L3_Land_Surface_Temp_8Day_Day',
+    format: 'image/png',
+    timed: true,
+    opacity: 0.72,
+    legendLo: 'Cool (crop/water)',
+    legendHi: 'Hot (bare/stressed)',
+    legendGrad: 'linear-gradient(to right,#2166AC,#74ADD1,#FEE090,#F46D43,#A50026)',
+    label: 'MODIS Land Surface Temp · 8-Day · 1km',
+    period: 8
+  }
+};
+
+// Generate recent 8-day MODIS composite dates dynamically
+function getRecentNdviDates(n) {
+  const today = new Date();
+  const yr = today.getFullYear();
+  // MODIS 8-day composites start Jan 1, fixed schedule
+  const jan1 = new Date(yr, 0, 1);
+  const dates = [];
+  // Go back from today in 8-day steps
+  let d = new Date(today);
+  // Snap to nearest 8-day
+  const doy = Math.floor((d - jan1) / 86400000);
+  const snapDoy = Math.floor(doy / 8) * 8;
+  d = new Date(jan1.getTime() + snapDoy * 86400000);
+  for (let i = 0; i < n; i++) {
+    dates.push(d.toISOString().split('T')[0]);
+    d = new Date(d.getTime() - 8 * 86400000);
+  }
+  // Also add key seasonal dates from previous year
+  dates.push(`${yr-1}-11-09`, `${yr-1}-09-13`, `${yr-1}-01-09`);
+  return dates;
+}
+
+function getRecentDailyDates(n) {
+  const dates = [];
+  let d = new Date();
+  d.setDate(d.getDate() - 2); // 2-day lag for true color
+  for (let i = 0; i < n; i++) {
+    dates.push(d.toISOString().split('T')[0]);
+    d.setDate(d.getDate() - 1);
+  }
+  return dates;
+}
+
+function buildSatDateButtons() {
+  const mode = SAT_MODES[currentSatMode];
+  const row = document.getElementById('sat-date-row');
+  const dates = (currentSatMode === 'truecolor')
+    ? getRecentDailyDates(8)
+    : getRecentNdviDates(8);
+  currentSatDate = dates[0];
+  row.innerHTML = dates.map((d, i) => {
+    const label = formatSatDateLabel(d);
+    return `<button class="sat-month-btn${i===0?' active':''}" onclick="setSatDate(this,'${d}')">${label}</button>`;
+  }).join('');
+}
+
+function formatSatDateLabel(dateStr) {
+  const d = new Date(dateStr);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const yr = d.getFullYear().toString().slice(2);
+  return `${months[d.getMonth()]} ${d.getDate()} '${yr}`;
+}
+
+function buildSatLayer(date, mode) {
+  const cfg = SAT_MODES[mode || currentSatMode];
+  return L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
+    layers: cfg.layer,
+    format: cfg.format,
+    transparent: cfg.format.includes('png'),
+    version: '1.1.1',
+    time: date,
+    opacity: cfg.opacity,
+    attribution: 'NASA GIBS · ' + cfg.label
+  });
+}
 
 function toggleSatellite() {
   const btn = document.getElementById('btn-sat');
   const ctrl = document.getElementById('sat-controls');
   if (!satVisible) {
+    buildSatDateButtons();
+    updateSatLegend();
     if (!satLayer) satLayer = buildSatLayer(currentSatDate);
     satLayer.addTo(map);
     satVisible = true;
     btn.className = 'layer-btn active-green';
-    btn.textContent = '🛰️ Hide NDVI';
+    btn.textContent = '🛰️ Hide Satellite';
     ctrl.style.display = 'block';
+    updateSatSeasonInfo();
   } else {
     if (satLayer) map.removeLayer(satLayer);
     satVisible = false;
     btn.className = 'layer-btn';
-    btn.textContent = '🛰️ Satellite NDVI';
+    btn.textContent = '🛰️ Satellite';
     ctrl.style.display = 'none';
   }
 }
 
-function buildSatLayer(date) {
-  return L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
-    layers: 'MODIS_Terra_NDVI_8Day',
-    format: 'image/png',
-    transparent: true,
-    version: '1.1.1',
-    time: date,
-    opacity: 0.75,
-    attribution: 'NASA GIBS · MODIS Terra NDVI'
-  });
+function setSatMode(btn, mode) {
+  document.querySelectorAll('.sat-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSatMode = mode;
+  buildSatDateButtons();
+  updateSatLegend();
+  if (satVisible) {
+    if (satLayer) map.removeLayer(satLayer);
+    satLayer = buildSatLayer(currentSatDate);
+    satLayer.addTo(map);
+  }
+  updateSatSeasonInfo();
 }
 
 function setSatDate(btn, date) {
@@ -2156,23 +2273,92 @@ function setSatDate(btn, date) {
   if (satLayer) {
     map.removeLayer(satLayer);
     satLayer = buildSatLayer(date);
-    satLayer.addTo(map);
+    if (satVisible) satLayer.addTo(map);
   }
-  // Show which crops are at peak this month
-  const m = parseInt(date.split('-')[1]);
-  const peakCrops = Object.entries(CROP_CALENDAR)
-    .filter(([, cal]) => cal.peak.includes(m))
-    .map(([name]) => name);
-  const ctrl = document.getElementById('sat-controls');
-  const existing = ctrl.querySelector('.peak-info');
-  if (existing) existing.remove();
-  if (peakCrops.length) {
-    const div = document.createElement('div');
-    div.className = 'peak-info';
-    div.style.cssText = 'font-size:0.62rem;color:var(--forest);margin-top:5px;font-weight:600;';
-    div.textContent = '🌿 Peak growth: ' + peakCrops.join(', ');
-    ctrl.appendChild(div);
+  updateSatSeasonInfo();
+}
+
+function updateSatLegend() {
+  const cfg = SAT_MODES[currentSatMode];
+  document.getElementById('sat-leg-lo').textContent = cfg.legendLo;
+  document.getElementById('sat-leg-hi').textContent = cfg.legendHi;
+  document.getElementById('sat-leg-grad').style.background = cfg.legendGrad || 'transparent';
+  document.getElementById('sat-legend-bar').style.display = cfg.legendGrad ? 'flex' : 'none';
+}
+
+function updateSatSeasonInfo() {
+  if (!currentSatDate) return;
+  const m = parseInt(currentSatDate.split('-')[1]);
+  const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const seasons = {
+    1:'Rabi peak',2:'Rabi peak',3:'Rabi harvest',4:'Dry/summer',5:'Dry/summer',
+    6:'Kharif sowing',7:'Kharif sowing',8:'Kharif growing',9:'Kharif growing',
+    10:'Kharif harvest',11:'Kharif harvest',12:'Rabi sowing'
+  };
+  const infoEl = document.getElementById('sat-season-info');
+  const peakEl = document.getElementById('sat-peak-crops');
+  infoEl.textContent = `📅 ${months[m]} — ${seasons[m] || ''}`;
+  if (currentSatMode === 'ndvi') {
+    const peakCrops = Object.entries(CROP_CALENDAR)
+      .filter(([,c]) => c.peak.includes(m))
+      .map(([name,c]) => c.emoji + name);
+    peakEl.textContent = peakCrops.length ? '🌿 At peak NDVI: ' + peakCrops.join(' · ') : '';
+    if (currentSatMode === 'lst') {
+      peakEl.textContent = 'Cooler temps indicate irrigated/actively growing crops';
+    }
+  } else if (currentSatMode === 'lst') {
+    peakEl.textContent = '🌡️ Cool pixels (blue) = irrigated crop / water bodies';
+  } else {
+    peakEl.textContent = '';
   }
+}
+
+
+// ============================================================
+// MAHABHUMI LAND RECORDS — Silent background fetch
+// API: https://api.mahabhumi.gov.in (ROR by coordinates)
+// Set MAHABHUMI_KEY in localStorage to activate
+// Data stored silently, not displayed until v3.0
+// ============================================================
+const MAHABHUMI_ENDPOINT = 'https://api.mahabhumi.gov.in/method/bE8vVXV6dTRGZk1CaUMwbXd0QTJMZz09';
+const MAHABHUMI_STORE_KEY = 'cropbrain_ror_cache';
+
+function getMahabhumi_key() {
+  return localStorage.getItem('mahabhumi_api_key') || null;
+}
+
+async function fetchMahabhumi(lat, lng) {
+  const apiKey = getMahabhumi_key();
+  if (!apiKey) {
+    console.log('[Mahabhumi] No API key set. To activate: localStorage.setItem("mahabhumi_api_key","YOUR_KEY")');
+    return null;
+  }
+  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const stored = JSON.parse(localStorage.getItem(MAHABHUMI_STORE_KEY) || '{}');
+  if (stored[cacheKey]) {
+    console.log('[Mahabhumi] Cache hit:', cacheKey, stored[cacheKey]);
+    return stored[cacheKey];
+  }
+  try {
+    const url = `${MAHABHUMI_ENDPOINT}?api_key=${apiKey}&lat=${lat.toFixed(6)}&lon=${lng.toFixed(6)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const data = await res.json();
+    if (data && !data.error) {
+      stored[cacheKey] = { ...data, fetched_at: new Date().toISOString() };
+      localStorage.setItem(MAHABHUMI_STORE_KEY, JSON.stringify(stored));
+      console.log('[Mahabhumi] ROR data fetched and cached:', cacheKey, data);
+    } else {
+      console.log('[Mahabhumi] API error:', data?.error || 'Unknown');
+    }
+    return data;
+  } catch(e) {
+    console.log('[Mahabhumi] Fetch failed:', e.message);
+    return null;
+  }
+}
+
+function getMahabhumiCache() {
+  return JSON.parse(localStorage.getItem(MAHABHUMI_STORE_KEY) || '{}');
 }
 
 // ============================================================
