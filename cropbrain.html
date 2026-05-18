@@ -859,6 +859,9 @@ const BOILERS = [
   ["GMR Warora Energy", 20.24, 79.02, "Chandrapur", "Power Plant", "600 MW", "GMR Group", 2200000, "600 MW IPP in Chandrapur. Cotton+rice residue from East Vidarbha."],
   ["Wardha Power", 20.75, 78.60, "Wardha", "Power Plant", "540 MW", "Wardha Power Co", 2000000, "540 MW. Wardha cotton belt. Direct supply chain opportunity."],
   ["Paras TPS", 20.719, 76.800, "Akola", "Power Plant", "500 MW", "MAHAGENCO", 1800000, "Oldest MAHAGENCO plant. Akola — cotton capital. Pellets from cotton stalk."],
+  ["NTPC Mouda TPS", 21.302, 79.280, "Nagpur", "Power Plant", "2320 MW", "NTPC", 9000000, "2320 MW central govt plant. Stage-I 1000MW + Stage-II 1320MW. Nagpur cotton/orange belt. NTPC has national co-firing mandate — strong pellet buyer."],
+  ["NTPC Solapur STPS", 17.547, 75.772, "Solapur", "Power Plant", "1320 MW", "NTPC", 5500000, "1320 MW (2×660 MW supercritical). Solapur — sugarcane/jowar/cotton. NTPC co-firing policy applies. Key Marathwada target."],
+  ["JSW Energy Ratnagiri", 16.697, 73.269, "Ratnagiri", "Power Plant", "1200 MW", "JSW Energy", 4500000, "1200 MW imported-coal plant on Konkan coast. Port-based logistics — pellets can arrive by sea. JSW has ESG biomass commitments."],
   ["Trombay TPS", 19.040, 72.920, "Mumbai", "Power Plant", "930 MW", "Tata Power", 3400000, "930 MW Tata Power Mumbai. Progressive ESG stance. Coastal logistics advantage."],
   ["Dhariwal Infrastructure", 21.50, 79.80, "Gondia", "Power Plant", "600 MW", "Dhariwal Infra", 2200000, "600 MW IPP Gondkhari. Rice straw from Gondia-Bhandara rice belt."],
   ["UltraTech Cement Awarpur", 19.98, 79.28, "Chandrapur", "Cement", "2.5 MTPA", "UltraTech/Adani", 600000, "2.5 MTPA cement. 250-300 kg coal per tonne cement. 600,000 MT/yr coal."],
@@ -1471,6 +1474,9 @@ function renderGeoLayer(data) {
   }).addTo(map);
   updateLegend(max);
   map.fitBounds(geoLayer.getBounds());
+  // Auto-show both boiler layers on load — core use case is finding customers
+  if (!boilerLayerVisible) togglePowerBoilers();
+  if (!indVisible) toggleIndustries();
 }
 
 function showTooltip(layer, distName) {
