@@ -3,770 +3,752 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CropBrain Maharashtra</title>
+<title>CropBrain Maharashtra — Biomass Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  :root {
-    --terra: #8B4513;
-    --forest: #2D5016;
-    --moss: #4A7C59;
-    --earth: #6B4226;
-    --clay: #C4956A;
-    --parchment: #F0E6D3;
-    --cream: #FAF6F0;
-    --paper: #FFFFFF;
-    --ink: #2C1810;
-    --muted: #8B7355;
-    --gold: #D4A853;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background: var(--cream);
-    color: var(--ink);
-    min-height: 100vh;
-  }
-  /* HEADER */
-  header {
-    background: linear-gradient(135deg, var(--forest) 0%, var(--moss) 60%, var(--terra) 100%);
-    color: white;
-    padding: 18px 20px 14px;
-    position: relative;
-    overflow: hidden;
-  }
-  header::before {
-    content: '';
-    position: absolute;
-    top: -40px; right: -40px;
-    width: 200px; height: 200px;
-    background: rgba(255,255,255,0.04);
-    border-radius: 50%;
-  }
-  .header-inner { max-width: 900px; margin: 0 auto; }
-  .header-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.8rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.1;
-  }
-  .header-title span { color: var(--gold); }
-  .header-sub {
-    font-size: 0.72rem;
-    opacity: 0.8;
-    margin-top: 2px;
-    font-weight: 300;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .stats-chips {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    flex-wrap: wrap;
-  }
-  .chip {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 0.72rem;
-    font-weight: 500;
-    backdrop-filter: blur(4px);
-  }
-  .chip strong { color: var(--gold); }
+:root {
+  --forest:   #1A3A1F;
+  --moss:     #2D6A3F;
+  --sage:     #4E8C5A;
+  --terra:    #8B4513;
+  --clay:     #C4956A;
+  --amber:    #D4A853;
+  --parchment:#F0E6D3;
+  --cream:    #FAFAF7;
+  --paper:    #FFFFFF;
+  --ink:      #1C1C1E;
+  --mid:      #4A4A52;
+  --muted:    #8A8A96;
+  --border:   #E8E4DC;
+  --red:      #C0392B;
+  --blue:     #2980B9;
+  --panel-w:  420px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);overflow:hidden;height:100vh;}
 
-  /* MAP */
-  #map-container {
-    width: 100%;
-    background: var(--parchment);
-    border-bottom: 2px solid var(--clay);
-    position: relative;
-  }
-  #map { height: 300px; width: 100%; }
-  #map-legend {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(250,246,240,0.93);
-    border: 1px solid var(--clay);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 0.68rem;
-    z-index: 999;
-    min-width: 130px;
-  }
-  #map-legend .legend-title {
-    font-weight: 600;
-    color: var(--forest);
-    margin-bottom: 5px;
-    font-family: 'Fira Code', monospace;
-    font-size: 0.65rem;
-  }
-  .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-  .legend-swatch { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-  #map-fallback {
-    display: none;
-    text-align: center;
-    padding: 20px;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
+/* ── APP SHELL ── */
+#app{display:flex;height:100vh;width:100vw;}
 
-  /* TABS */
-  .tabs-wrapper {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 12px;
-  }
-  .tabs-nav {
-    display: flex;
-    gap: 0;
-    border-bottom: 2px solid var(--clay);
-    margin-top: 14px;
-  }
-  .tab-btn {
-    padding: 9px 20px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    background: none;
-    color: var(--muted);
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.2s;
-    letter-spacing: 0.03em;
-  }
-  .tab-btn.active {
-    color: var(--forest);
-    border-bottom-color: var(--forest);
-  }
-  .tab-btn:hover:not(.active) { color: var(--earth); }
-  .tab-panel { display: none; padding: 16px 0 40px; }
-  .tab-panel.active { display: block; }
+/* ── MAP PANEL ── */
+#map-panel{
+  flex:1 1 auto;
+  position:relative;
+  overflow:hidden;
+}
+#map{width:100%;height:100%;}
 
-  /* CROP EXPLORER */
-  .section-label {
-    font-family: 'Fira Code', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 10px;
-  }
-  .crop-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-  .crop-card {
-    background: var(--paper);
-    border: 1.5px solid var(--parchment);
-    border-radius: 10px;
-    padding: 12px 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-    position: relative;
-  }
-  .crop-card:hover {
-    border-color: var(--moss);
-    box-shadow: 0 2px 12px rgba(74,124,89,0.15);
-    transform: translateY(-1px);
-  }
-  .crop-card.selected {
-    border-color: var(--forest);
-    background: linear-gradient(135deg, #f0f7f0, #ffffff);
-    box-shadow: 0 2px 12px rgba(45,80,22,0.2);
-  }
-  .crop-emoji { font-size: 1.6rem; display: block; margin-bottom: 5px; }
-  .crop-name {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--earth);
-    display: block;
-  }
-  .crop-season {
-    font-size: 0.6rem;
-    color: var(--muted);
-    font-family: 'Fira Code', monospace;
-    display: block;
-    margin-top: 2px;
-  }
+/* ── FLOATING MAP CONTROLS ── */
+#map-overlay{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+  z-index:800;
+}
+#search-zone{
+  position:absolute;
+  top:14px;left:14px;right:14px;
+  pointer-events:all;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-width:340px;
+}
+#search-wrap{
+  position:relative;
+}
+#search-input{
+  width:100%;
+  padding:10px 14px 10px 38px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.83rem;
+  font-weight:500;
+  background:rgba(255,255,255,0.97);
+  backdrop-filter:blur(8px);
+  border:none;
+  border-radius:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.18);
+  outline:none;
+  color:var(--ink);
+}
+#search-input::placeholder{color:var(--muted);}
+#search-icon{
+  position:absolute;
+  left:12px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:1rem;pointer-events:none;
+}
+#search-results{
+  display:none;
+  background:rgba(255,255,255,0.98);
+  border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.18);
+  overflow:hidden;
+  margin-top:4px;
+}
+.search-result-item{
+  padding:9px 14px;
+  font-size:0.8rem;
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+  color:var(--ink);
+  transition:background 0.15s;
+}
+.search-result-item:last-child{border-bottom:none;}
+.search-result-item:hover{background:var(--parchment);}
+.search-result-name{font-weight:600;}
+.search-result-sub{color:var(--muted);font-size:0.72rem;}
 
-  /* CROP DETAIL */
-  #crop-detail {
-    display: none;
-    background: var(--paper);
-    border: 1.5px solid var(--parchment);
-    border-radius: 12px;
-    padding: 18px;
-    margin-bottom: 16px;
-  }
-  #crop-detail.visible { display: block; }
-  .detail-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--parchment);
-  }
-  .detail-emoji { font-size: 2.2rem; }
-  .detail-crop-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--forest);
-  }
-  .detail-meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
-  .detail-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .stat-box {
-    background: var(--cream);
-    border-radius: 8px;
-    padding: 10px 12px;
-    text-align: center;
-  }
-  .stat-val {
-    font-family: 'Fira Code', monospace;
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--forest);
-    display: block;
-  }
-  .stat-lbl {
-    font-size: 0.6rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    display: block;
-    margin-top: 2px;
-  }
-  .district-rank-table { width: 100%; border-collapse: collapse; }
-  .district-rank-table th {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-    font-weight: 600;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--parchment);
-    text-align: left;
-  }
-  .district-rank-table td {
-    font-size: 0.75rem;
-    padding: 6px 8px;
-    border-bottom: 1px solid #f5f0e8;
-    vertical-align: middle;
-  }
-  .district-rank-table tr:last-child td { border-bottom: none; }
-  .rank-num {
-    font-family: 'Fira Code', monospace;
-    color: var(--muted);
-    font-size: 0.68rem;
-  }
-  .district-link {
-    color: var(--forest);
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-  }
-  .district-link:hover { text-decoration: underline; }
-  .bar-cell { width: 120px; }
-  .mini-bar {
-    height: 8px;
-    background: var(--moss);
-    border-radius: 4px;
-    opacity: 0.7;
-  }
-  .prod-cell {
-    font-family: 'Fira Code', monospace;
-    font-size: 0.68rem;
-    color: var(--earth);
-  }
+/* Radius pills */
+#radius-pills{
+  display:flex;
+  gap:6px;
+  pointer-events:all;
+}
+.radius-pill{
+  padding:5px 13px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.72rem;
+  font-weight:600;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(6px);
+  border:none;
+  border-radius:20px;
+  cursor:pointer;
+  color:var(--mid);
+  box-shadow:0 2px 10px rgba(0,0,0,0.12);
+  transition:all 0.2s;
+}
+.radius-pill.active{
+  background:var(--forest);
+  color:white;
+  box-shadow:0 2px 12px rgba(26,58,31,0.4);
+}
 
-  /* DISTRICT VIEW */
-  .district-selector-wrap {
-    margin-bottom: 16px;
-  }
-  #district-select {
-    width: 100%;
-    max-width: 320px;
-    padding: 9px 14px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.82rem;
-    border: 1.5px solid var(--clay);
-    border-radius: 8px;
-    background: var(--paper);
-    color: var(--ink);
-    cursor: pointer;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  #district-select:focus { border-color: var(--moss); }
+/* Layer toggle buttons */
+#layer-btns{
+  position:absolute;
+  bottom:20px;
+  left:14px;
+  pointer-events:all;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.layer-btn{
+  padding:7px 14px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.75rem;
+  font-weight:600;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(6px);
+  border:none;
+  border-radius:24px;
+  cursor:pointer;
+  color:var(--mid);
+  box-shadow:0 2px 10px rgba(0,0,0,0.14);
+  transition:all 0.2s;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+}
+.layer-btn.active{
+  background:var(--red);
+  color:white;
+  box-shadow:0 2px 14px rgba(192,57,43,0.4);
+}
+.layer-btn.active-green{
+  background:var(--moss);
+  color:white;
+  box-shadow:0 2px 14px rgba(45,106,63,0.4);
+}
 
-  #district-detail {
-    display: none;
-    background: var(--paper);
-    border: 1.5px solid var(--parchment);
-    border-radius: 12px;
-    padding: 18px;
-  }
-  #district-detail.visible { display: block; }
-  .district-detail-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--parchment);
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .district-name-big {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--terra);
-  }
-  .district-summary-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-  .d-chip {
-    background: var(--parchment);
-    border-radius: 14px;
-    padding: 3px 10px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: var(--earth);
-    font-family: 'Fira Code', monospace;
-  }
-  .barchart-section { margin-top: 16px; }
-  .barchart-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-  .hbar-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-  .hbar-label {
-    width: 90px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--earth);
-    text-align: right;
-    flex-shrink: 0;
-  }
-  .hbar-track {
-    flex: 1;
-    background: var(--parchment);
-    border-radius: 4px;
-    height: 14px;
-    overflow: hidden;
-  }
-  .hbar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--moss), var(--forest));
-    border-radius: 4px;
-    transition: width 0.4s ease;
-  }
-  .hbar-val {
-    font-family: 'Fira Code', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
-    width: 80px;
-    flex-shrink: 0;
-  }
+/* Map legend */
+#map-legend{
+  position:absolute;
+  bottom:20px;
+  right:14px;
+  background:rgba(255,255,255,0.94);
+  backdrop-filter:blur(6px);
+  border-radius:10px;
+  padding:10px 14px;
+  font-size:0.68rem;
+  pointer-events:none;
+  min-width:140px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.14);
+}
+#map-legend .legend-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;
+  font-weight:500;
+  color:var(--forest);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  margin-bottom:6px;
+}
+.legend-row{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.legend-swatch{width:18px;height:10px;border-radius:3px;flex-shrink:0;}
 
-  .crop-table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-  .crop-table th {
-    font-size: 0.63rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-    font-weight: 600;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--parchment);
-    text-align: left;
-  }
-  .crop-table td {
-    font-size: 0.74rem;
-    padding: 7px 8px;
-    border-bottom: 1px solid #f5f0e8;
-    vertical-align: middle;
-  }
-  .crop-table tr:last-child td { border-bottom: none; }
-  .crop-table .state-rank {
-    font-family: 'Fira Code', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
-  }
-  .rank-badge {
-    display: inline-block;
-    background: var(--gold);
-    color: var(--ink);
-    border-radius: 10px;
-    padding: 1px 7px;
-    font-size: 0.6rem;
-    font-weight: 700;
-    font-family: 'Fira Code', monospace;
-  }
-  .rank-badge.r1 { background: #FFD700; }
-  .rank-badge.r2 { background: #C0C0C0; }
-  .rank-badge.r3 { background: #CD7F32; color: white; }
+/* ── RIGHT PANEL ── */
+#analysis-panel{
+  width:var(--panel-w);
+  flex:0 0 var(--panel-w);
+  height:100vh;
+  background:var(--cream);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-left:1px solid rgba(0,0,0,0.08);
+  box-shadow:-4px 0 24px rgba(0,0,0,0.12);
+}
 
-  footer {
-    text-align: center;
-    padding: 20px;
-    font-size: 0.65rem;
-    color: var(--muted);
-    border-top: 1px solid var(--parchment);
-    margin-top: 10px;
-    font-family: 'Fira Code', monospace;
-  }
+/* Panel header */
+#panel-header{
+  background:var(--forest);
+  padding:14px 18px 12px;
+  flex-shrink:0;
+}
+.panel-logo{
+  font-family:'Playfair Display',serif;
+  font-size:1.35rem;
+  font-weight:900;
+  color:#fff;
+  letter-spacing:-0.01em;
+  line-height:1;
+}
+.panel-logo span{color:var(--amber);}
+.panel-sub{
+  font-size:0.67rem;
+  color:rgba(255,255,255,0.6);
+  margin-top:3px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+.panel-stats{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
+}
+.pstat{
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:16px;
+  padding:3px 10px;
+  font-size:0.68rem;
+  color:rgba(255,255,255,0.8);
+  font-weight:500;
+}
+.pstat b{color:var(--amber);}
 
-  .leaflet-popup-content-wrapper {
-    border-radius: 10px !important;
-    font-family: 'Plus Jakarta Sans', sans-serif !important;
-    font-size: 0.78rem !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
-  }
-  .tooltip-district { font-weight: 700; color: var(--forest); font-size: 0.85rem; }
-  .tooltip-row { margin-top: 3px; color: var(--muted); }
-  .tooltip-val { font-weight: 600; color: var(--ink); font-family: 'Fira Code', monospace; }
+/* Panel scrollable content */
+#panel-body{
+  flex:1;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+#panel-body::-webkit-scrollbar{width:4px;}
+#panel-body::-webkit-scrollbar-track{background:transparent;}
+#panel-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
-  @media (max-width: 600px) {
-    .header-title { font-size: 1.4rem; }
-    .detail-stats { grid-template-columns: 1fr 1fr; }
-    .crop-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-    .bar-cell { display: none; }
-    #map { height: 240px; }
-  }
+/* ── SITE ASSESSMENT ── */
+#site-assessment{
+  display:none;
+  padding:14px 16px 0;
+}
+#site-assessment.visible{display:block;}
+.assess-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+.assess-loc{
+  font-size:0.85rem;
+  font-weight:600;
+  color:var(--forest);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.assess-loc-sub{
+  font-size:0.68rem;
+  color:var(--muted);
+  margin-top:1px;
+}
+.assess-clear{
+  background:none;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:4px 10px;
+  font-size:0.7rem;
+  cursor:pointer;
+  color:var(--muted);
+  font-family:'DM Sans',sans-serif;
+  transition:all 0.2s;
+}
+.assess-clear:hover{background:var(--border);color:var(--ink);}
 
-  /* BOILER LAYER */
-  #boiler-toggle-btn {
-    position: absolute;
-    top: 10px;
-    left: 50px;
-    z-index: 1000;
-    background: rgba(250,246,240,0.93);
-    border: 1.5px solid var(--clay);
-    border-radius: 20px;
-    padding: 5px 13px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.73rem;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--ink);
-    transition: all 0.2s;
-  }
-  #boiler-toggle-btn.active {
-    background: #C0392B;
-    color: white;
-    border-color: #922b21;
-  }
-  #boiler-legend {
-    display: none;
-    margin-top: 8px;
-    border-top: 1px solid var(--parchment);
-    padding-top: 6px;
-  }
-  #boiler-legend .legend-title { color: #C0392B; }
+.assess-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:12px;
+}
+.assess-card{
+  background:white;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+  cursor:pointer;
+  transition:box-shadow 0.2s;
+}
+.assess-card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.08);}
+.assess-card-title{
+  font-size:0.62rem;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  color:var(--muted);
+  margin-bottom:4px;
+}
+.assess-card-val{
+  font-family:'JetBrains Mono',monospace;
+  font-size:1.15rem;
+  font-weight:500;
+  color:var(--forest);
+}
+.assess-card-sub{font-size:0.67rem;color:var(--muted);margin-top:2px;}
 
-  /* BOILER DIRECTORY TAB */
-  .boiler-summary-bar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 18px;
-  }
-  .boiler-stat-box {
-    background: var(--paper);
-    border: 1.5px solid var(--parchment);
-    border-radius: 10px;
-    padding: 14px 16px;
-    text-align: center;
-  }
-  .boiler-stat-val {
-    font-family: 'Fira Code', monospace;
-    font-size: 1.2rem;
-    font-weight: 500;
-    color: #C0392B;
-    display: block;
-  }
-  .boiler-stat-lbl {
-    font-size: 0.62rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    display: block;
-    margin-top: 3px;
-  }
-  .boiler-filter-bar {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-  }
-  .boiler-filter-btn {
-    padding: 5px 12px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.7rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1.5px solid var(--clay);
-    border-radius: 14px;
-    background: var(--paper);
-    color: var(--muted);
-    transition: all 0.2s;
-  }
-  .boiler-filter-btn.active {
-    background: var(--forest);
-    color: white;
-    border-color: var(--forest);
-  }
-  .boiler-table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
-  .boiler-table th {
-    font-size: 0.62rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-    font-weight: 600;
-    padding: 7px 8px;
-    border-bottom: 2px solid var(--parchment);
-    text-align: left;
-    white-space: nowrap;
-  }
-  .boiler-table td {
-    padding: 7px 8px;
-    border-bottom: 1px solid #f5f0e8;
-    vertical-align: middle;
-  }
-  .boiler-table tr:last-child td { border-bottom: none; }
-  .boiler-table tr { cursor: pointer; transition: background 0.15s; }
-  .boiler-table tr:hover td { background: #f9f4ee; }
-  .cat-badge {
-    display: inline-block;
-    border-radius: 10px;
-    padding: 2px 8px;
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: white;
-    white-space: nowrap;
-  }
-  .boiler-name-cell { font-weight: 600; color: var(--ink); }
-  .boiler-notes-cell { font-size: 0.65rem; color: var(--muted); max-width: 220px; }
-  .boiler-tpa-cell { font-family: 'Fira Code', monospace; font-size: 0.68rem; color: var(--earth); }
+/* Assessment lists */
+.assess-section{
+  background:white;
+  border:1px solid var(--border);
+  border-radius:10px;
+  margin-bottom:10px;
+  overflow:hidden;
+}
+.assess-section-hdr{
+  padding:8px 12px;
+  background:var(--parchment);
+  font-size:0.7rem;
+  font-weight:700;
+  color:var(--forest);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.assess-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:7px 12px;
+  border-bottom:1px solid #F5F1EB;
+  font-size:0.75rem;
+  gap:8px;
+}
+.assess-row:last-child{border-bottom:none;}
+.assess-row-name{font-weight:600;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assess-row-val{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.68rem;
+  color:var(--terra);
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.assess-row-val.green{color:var(--moss);}
+.assess-row-dist{
+  font-size:0.65rem;
+  color:var(--muted);
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.assess-empty{
+  padding:16px 12px;
+  text-align:center;
+  font-size:0.75rem;
+  color:var(--muted);
+}
+
+/* ── TABS ── */
+#tab-nav{
+  display:flex;
+  border-bottom:2px solid var(--border);
+  background:white;
+  flex-shrink:0;
+  padding:0 4px;
+  overflow-x:auto;
+}
+#tab-nav::-webkit-scrollbar{display:none;}
+.tab-btn{
+  padding:10px 12px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.75rem;
+  font-weight:600;
+  cursor:pointer;
+  border:none;
+  background:none;
+  color:var(--muted);
+  border-bottom:2.5px solid transparent;
+  margin-bottom:-2px;
+  transition:all 0.2s;
+  white-space:nowrap;
+}
+.tab-btn.active{color:var(--forest);border-bottom-color:var(--forest);}
+.tab-btn:hover:not(.active){color:var(--mid);}
+
+.tab-panel{display:none;padding:14px 16px 40px;}
+.tab-panel.active{display:block;}
+
+/* Section labels */
+.sec-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  margin-bottom:8px;
+}
+
+/* ── CROP GRID ── */
+.crop-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
+  gap:7px;
+  margin-bottom:16px;
+}
+.crop-card{
+  background:white;
+  border:1.5px solid var(--border);
+  border-radius:8px;
+  padding:10px 8px;
+  cursor:pointer;
+  transition:all 0.2s;
+  text-align:center;
+}
+.crop-card:hover{border-color:var(--sage);box-shadow:0 2px 10px rgba(78,140,90,0.15);}
+.crop-card.selected{border-color:var(--forest);background:linear-gradient(135deg,#f0f7f0,#fff);box-shadow:0 2px 12px rgba(26,58,31,0.18);}
+.crop-emoji{font-size:1.4rem;display:block;margin-bottom:4px;}
+.crop-name{font-size:0.68rem;font-weight:600;color:var(--terra);display:block;}
+.crop-season{font-size:0.58rem;color:var(--muted);font-family:'JetBrains Mono',monospace;display:block;margin-top:2px;}
+
+/* Crop detail panel */
+#crop-detail{display:none;background:white;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+#crop-detail.visible{display:block;}
+.detail-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.detail-emoji{font-size:2rem;}
+.detail-crop-name{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--forest);}
+.detail-meta{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.detail-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.stat-box{background:var(--cream);border-radius:8px;padding:8px 10px;text-align:center;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:500;color:var(--forest);display:block;}
+.stat-lbl{font-size:0.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-top:2px;}
+
+/* Tables shared */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);font-weight:600;padding:5px 7px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.data-table td{font-size:0.72rem;padding:6px 7px;border-bottom:1px solid #F5F1EB;vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr{cursor:pointer;transition:background 0.12s;}
+.data-table tr:hover td{background:#f8f5f0;}
+.rank-num{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:0.65rem;}
+.district-link{color:var(--forest);font-weight:600;cursor:pointer;}
+.district-link:hover{text-decoration:underline;}
+.mini-bar{height:7px;background:var(--sage);border-radius:3px;opacity:0.75;}
+.mono-val{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--terra);}
+.mono-green{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--moss);font-weight:600;}
+
+/* District view */
+#district-select{
+  width:100%;
+  padding:8px 12px;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.82rem;
+  border:1.5px solid var(--border);
+  border-radius:8px;
+  background:white;
+  color:var(--ink);
+  cursor:pointer;
+  outline:none;
+  margin-bottom:12px;
+  transition:border-color 0.2s;
+}
+#district-select:focus{border-color:var(--sage);}
+#district-detail{display:none;}
+#district-detail.visible{display:block;}
+.district-name-big{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--terra);margin-bottom:8px;}
+.d-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.d-chip{background:var(--parchment);border-radius:12px;padding:3px 9px;font-size:0.63rem;font-weight:600;color:var(--terra);font-family:'JetBrains Mono',monospace;}
+.hbar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.hbar-label{width:80px;font-size:0.68rem;font-weight:600;color:var(--terra);text-align:right;flex-shrink:0;}
+.hbar-track{flex:1;background:var(--parchment);border-radius:4px;height:12px;overflow:hidden;}
+.hbar-fill{height:100%;background:linear-gradient(90deg,var(--sage),var(--forest));border-radius:4px;transition:width 0.4s ease;}
+.hbar-val{font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted);width:60px;flex-shrink:0;}
+.rank-badge{display:inline-block;border-radius:8px;padding:1px 6px;font-size:0.58rem;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.r1{background:#FFD700;color:#5a4000;}
+.r2{background:#C0C0C0;color:#3a3a3a;}
+.r3{background:#CD7F32;color:white;}
+
+/* Boiler directory */
+.boiler-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.b-stat{background:white;border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;}
+.b-val{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:500;color:var(--red);display:block;}
+.b-lbl{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;display:block;margin-top:2px;}
+.filter-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.f-btn{padding:4px 10px;font-size:0.68rem;font-weight:600;cursor:pointer;border:1.5px solid var(--border);border-radius:12px;background:white;color:var(--muted);transition:all 0.2s;font-family:'DM Sans',sans-serif;}
+.f-btn.active{background:var(--forest);color:white;border-color:var(--forest);}
+.cat-badge{display:inline-block;border-radius:8px;padding:2px 7px;font-size:0.58rem;font-weight:700;color:white;white-space:nowrap;}
+
+/* Industries tab */
+#ind-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.ind-stat{background:white;border:1px solid var(--border);border-radius:8px;padding:8px 12px;}
+.ind-stat .val{font-size:1.1rem;font-weight:700;color:var(--terra);font-family:'JetBrains Mono',monospace;}
+.ind-stat .lbl{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;}
+#ind-filters{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+
+/* Scrollable table wrapper */
+.tbl-wrap{overflow-x:auto;}
+
+/* Responsive */
+@media (max-width:900px){
+  :root{--panel-w:100vw;}
+  #app{flex-direction:column;}
+  #map-panel{height:45vh;flex:none;}
+  #analysis-panel{width:100%;height:55vh;flex:none;}
+  body{overflow:auto;}
+}
+
+/* Leaflet popup styling */
+.leaflet-popup-content-wrapper{
+  border-radius:10px!important;
+  font-family:'DM Sans',sans-serif!important;
+  font-size:0.78rem!important;
+  box-shadow:0 6px 24px rgba(0,0,0,0.16)!important;
+  border:none!important;
+}
+.leaflet-popup-tip{display:none;}
+
+/* Animate panel sections */
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeIn 0.25s ease forwards;}
 </style>
 </head>
 <body>
+<div id="app">
 
-<header>
-  <div class="header-inner">
-    <div class="header-title">Crop<span>Brain</span> Maharashtra</div>
-    <div class="header-sub">Maharashtra Crop Intelligence &nbsp;|&nbsp; 36 Districts &nbsp;|&nbsp; 16 Crops &nbsp;|&nbsp; 2021-22 Season Data</div>
-    <div class="stats-chips">
-      <div class="chip">Total Area: <strong id="chip-area">~5.2M ha</strong></div>
-      <div class="chip">Top Crop: <strong id="chip-topcrop">Cotton</strong></div>
-      <div class="chip">Districts: <strong>36</strong></div>
-      <div class="chip">Crops Tracked: <strong>16</strong></div>
-      <div class="chip">🏭 <strong>50 Boiler Sites</strong></div>
-      <div class="chip">⚡ <strong>38MT Coal/yr</strong></div>
-      <div class="chip">🏗️ <strong>90+ Industrial Sites</strong></div>
-    </div>
-  </div>
-</header>
+  <!-- ═══════════ MAP PANEL ═══════════ -->
+  <div id="map-panel">
+    <div id="map"></div>
 
-<div id="map-container">
-  <div id="map"></div>
-  <button id="boiler-toggle-btn" onclick="toggleBoilerLayer()">🏭 Show Boilers</button>
-  <button id="btn-industries" onclick="toggleIndustries()" style="position:absolute;top:10px;left:165px;z-index:1000;background:rgba(250,246,240,0.93);border:1.5px solid var(--clay);border-radius:20px;padding:5px 13px;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.73rem;font-weight:600;cursor:pointer;color:var(--ink);transition:all 0.2s;">🏗️ Industries</button>
-  <div id="map-legend">
-    <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
-    <div id="legend-rows"></div>
-    <div id="boiler-legend">
-      <div class="legend-title">BOILER CATEGORIES</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#C0392B"></div><span>Power Plant</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#E67E22"></div><span>Cement</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#7F8C8D"></div><span>Steel</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#8B4513"></div><span>Paper</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#8E44AD"></div><span>Chemical</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#2980B9"></div><span>Textile</span></div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#27AE60"></div><span>Sugar Mill</span></div>
-    </div>
-  </div>
-  <div id="map-fallback">
-    <p>Map could not load GeoJSON. District data still available in tabs below.</p>
-  </div>
-</div>
-
-<div class="tabs-wrapper">
-  <div class="tabs-nav">
-    <button class="tab-btn active" onclick="switchTab('crop')">🌿 Crop Explorer</button>
-    <button class="tab-btn" onclick="switchTab('district')">📍 District View</button>
-    <button class="tab-btn" onclick="switchTab('boilers')">🏭 Boiler Directory</button>
-    <button class="tab-btn" onclick="switchTab('industries')">🏗️ Industries</button>
-  </div>
-
-  <!-- CROP EXPLORER TAB -->
-  <div class="tab-panel active" id="tab-crop">
-    <div class="section-label">Select a crop to explore district-level data</div>
-    <div class="crop-grid" id="crop-grid"></div>
-    <div id="crop-detail">
-      <div class="detail-header">
-        <div class="detail-emoji" id="detail-emoji"></div>
-        <div>
-          <div class="detail-crop-name" id="detail-name"></div>
-          <div class="detail-meta" id="detail-meta"></div>
+    <div id="map-overlay">
+      <!-- Search + radius -->
+      <div id="search-zone">
+        <div id="search-wrap">
+          <span id="search-icon">🔍</span>
+          <input id="search-input" type="text" placeholder="Search location, district, or company…" autocomplete="off">
+          <div id="search-results"></div>
+        </div>
+        <div id="radius-pills">
+          <button class="radius-pill" data-r="25">25 km</button>
+          <button class="radius-pill active" data-r="50">50 km</button>
+          <button class="radius-pill" data-r="100">100 km</button>
+          <button class="radius-pill" data-r="150">150 km</button>
         </div>
       </div>
-      <div class="detail-stats">
-        <div class="stat-box">
-          <span class="stat-val" id="stat-area"></span>
-          <span class="stat-lbl">Total Area (Ha)</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-val" id="stat-prod"></span>
-          <span class="stat-lbl">Total Production (MT)</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-val" id="stat-districts"></span>
-          <span class="stat-lbl">Districts Covered</span>
-        </div>
+
+      <!-- Layer toggles (bottom left) -->
+      <div id="layer-btns">
+        <button class="layer-btn" id="btn-power" onclick="togglePowerBoilers()">⚡ Power Boilers</button>
+        <button class="layer-btn" id="btn-ind" onclick="toggleIndustries()">🏗️ Industrial Sites</button>
       </div>
-      <div class="section-label">Districts ranked by area</div>
-      <div style="overflow-x:auto;">
-        <table class="district-rank-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>District</th>
-              <th>Area (Ha)</th>
-              <th>Production (MT)</th>
-              <th class="bar-cell">Share</th>
-            </tr>
-          </thead>
-          <tbody id="rank-tbody"></tbody>
-        </table>
+
+      <!-- Legend (bottom right) -->
+      <div id="map-legend">
+        <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
+        <div id="legend-rows"></div>
+        <div id="boiler-legend" style="display:none;margin-top:7px;border-top:1px solid var(--border);padding-top:6px;">
+          <div class="legend-title">POWER BOILERS</div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#C0392B"></div><span>Power Plant</span></div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#E67E22"></div><span>Cement</span></div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#7F8C8D"></div><span>Steel/Paper</span></div>
+          <div class="legend-row"><div class="legend-swatch" style="background:#27AE60"></div><span>Sugar Mill</span></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- BOILER DIRECTORY TAB -->
-  <div class="tab-panel" id="tab-boilers">
-    <div class="boiler-summary-bar">
-      <div class="boiler-stat-box">
-        <span class="boiler-stat-val" id="boiler-total-coal">38.1M MT</span>
-        <span class="boiler-stat-lbl">Total Coal Consumption / Year</span>
-      </div>
-      <div class="boiler-stat-box">
-        <span class="boiler-stat-val" id="boiler-pellet-potential">1.9M MT</span>
-        <span class="boiler-stat-lbl">Pellet Co-firing Potential (5% blend)</span>
-      </div>
-    </div>
-    <div class="boiler-filter-bar" id="boiler-filter-bar">
-      <button class="boiler-filter-btn active" onclick="filterBoilers('All')">All</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Power Plant')">Power Plant</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Cement')">Cement</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Steel')">Steel</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Textile')">Textile</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Sugar Mill')">Sugar Mill</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Chemical')">Chemical</button>
-      <button class="boiler-filter-btn" onclick="filterBoilers('Paper')">Paper</button>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="boiler-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>District</th>
-            <th>Category</th>
-            <th>Capacity</th>
-            <th>Coal TPY</th>
-            <th>Pellet Demand (5%)</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody id="boiler-tbody"></tbody>
-      </table>
-    </div>
-  </div>
+  <!-- ═══════════ ANALYSIS PANEL ═══════════ -->
+  <div id="analysis-panel">
 
-  <!-- INDUSTRIES TAB -->
-  <div class="tab-panel" id="tab-industries">
-    <div id="ind-summary" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="ind-filters"></div>
-    <div style="overflow-x:auto">
-      <table class="boiler-table" id="ind-table">
-        <thead><tr>
-          <th>Company</th><th>District</th><th>Industry</th>
-          <th>Boiler TPH</th><th>Coal MT/yr</th><th>Pellet 5% MT/yr</th>
-        </tr></thead>
-        <tbody id="ind-tbody"></tbody>
-      </table>
+    <!-- Header -->
+    <div id="panel-header">
+      <div class="panel-logo">Crop<span>Brain</span></div>
+      <div class="panel-sub">Maharashtra Biomass Intelligence · 36 Districts · 16 Crops</div>
+      <div class="panel-stats">
+        <div class="pstat"><b id="chip-area">~5.2M</b> ha cultivated</div>
+        <div class="pstat"><b>50</b> power boilers</div>
+        <div class="pstat"><b>112</b> industrial sites</div>
+        <div class="pstat"><b>38M</b> MT coal/yr</div>
+      </div>
     </div>
-  </div>
 
-  <!-- DISTRICT VIEW TAB -->
-  <div class="tab-panel" id="tab-district">
-    <div class="district-selector-wrap">
-      <div class="section-label" style="margin-bottom:6px;">Select a district to view crop breakdown</div>
-      <select id="district-select" onchange="loadDistrict(this.value)">
-        <option value="">— Choose a district —</option>
-      </select>
-    </div>
-    <div id="district-detail">
-      <div class="district-detail-header">
-        <div>
+    <div id="panel-body">
+
+      <!-- ── SITE ASSESSMENT ── -->
+      <div id="site-assessment">
+        <div class="assess-header">
+          <div>
+            <div class="assess-loc">📍 <span id="loc-name">—</span></div>
+            <div class="assess-loc-sub" id="loc-sub"></div>
+          </div>
+          <button class="assess-clear" onclick="clearSiteAssessment()">✕ Clear</button>
+        </div>
+        <div class="assess-grid">
+          <div class="assess-card">
+            <div class="assess-card-title">Crop Residue</div>
+            <div class="assess-card-val" id="a-residue">—</div>
+            <div class="assess-card-sub">MT/yr biomass available</div>
+          </div>
+          <div class="assess-card">
+            <div class="assess-card-title">Power Boiler Demand</div>
+            <div class="assess-card-val" id="a-power-demand">—</div>
+            <div class="assess-card-sub">MT/yr pellet potential (5%)</div>
+          </div>
+          <div class="assess-card">
+            <div class="assess-card-title">Power Plants Nearby</div>
+            <div class="assess-card-val" id="a-power-count">—</div>
+            <div class="assess-card-sub" id="a-radius-label">within selected radius</div>
+          </div>
+          <div class="assess-card">
+            <div class="assess-card-title">Industrial Sites</div>
+            <div class="assess-card-val" id="a-ind-count">—</div>
+            <div class="assess-card-sub">boiler sites within radius</div>
+          </div>
+        </div>
+
+        <!-- Crop residue by district -->
+        <div class="assess-section">
+          <div class="assess-section-hdr">🌾 Crop Residue by District (within radius)</div>
+          <div id="residue-list"><div class="assess-empty">No districts in range</div></div>
+        </div>
+
+        <!-- Power boiler customers -->
+        <div class="assess-section">
+          <div class="assess-section-hdr">⚡ Power Boiler Customers</div>
+          <div id="power-customer-list"><div class="assess-empty">No power plants in range</div></div>
+        </div>
+
+        <!-- Industrial customers -->
+        <div class="assess-section" style="margin-bottom:14px;">
+          <div class="assess-section-hdr">🏗️ Industrial Boiler Customers</div>
+          <div id="ind-customer-list"><div class="assess-empty">No industrial sites in range</div></div>
+        </div>
+      </div>
+
+      <!-- ── TABS ── -->
+      <div id="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('crop')">🌿 Crops</button>
+        <button class="tab-btn" onclick="switchTab('district')">📍 Districts</button>
+        <button class="tab-btn" onclick="switchTab('boilers')">⚡ Power Boilers</button>
+        <button class="tab-btn" onclick="switchTab('industries')">🏗️ Industrial</button>
+      </div>
+
+      <!-- CROP EXPLORER -->
+      <div class="tab-panel active" id="tab-crop">
+        <div class="sec-label" style="margin-bottom:8px;">Select a crop to explore district data</div>
+        <div class="crop-grid" id="crop-grid"></div>
+        <div id="crop-detail">
+          <div class="detail-header">
+            <div class="detail-emoji" id="detail-emoji"></div>
+            <div>
+              <div class="detail-crop-name" id="detail-name"></div>
+              <div class="detail-meta" id="detail-meta"></div>
+            </div>
+          </div>
+          <div class="detail-stats">
+            <div class="stat-box"><span class="stat-val" id="stat-area"></span><span class="stat-lbl">Total Area (Ha)</span></div>
+            <div class="stat-box"><span class="stat-val" id="stat-prod"></span><span class="stat-lbl">Production (MT)</span></div>
+            <div class="stat-box"><span class="stat-val" id="stat-districts"></span><span class="stat-lbl">Districts</span></div>
+          </div>
+          <div class="sec-label">Districts ranked by area</div>
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>#</th><th>District</th><th>Area (Ha)</th><th>Prod (MT)</th><th style="min-width:80px">Share</th></tr></thead>
+              <tbody id="rank-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISTRICT VIEW -->
+      <div class="tab-panel" id="tab-district">
+        <div class="sec-label" style="margin-bottom:6px;">Select a district</div>
+        <select id="district-select" onchange="loadDistrict(this.value)">
+          <option value="">— Choose a district —</option>
+        </select>
+        <div id="district-detail">
           <div class="district-name-big" id="dv-name"></div>
-          <div class="district-summary-chips" id="dv-chips"></div>
+          <div class="d-chips" id="dv-chips"></div>
+          <div class="sec-label">Top 5 Crops by Area</div>
+          <div id="dv-barchart" style="margin-bottom:12px;"></div>
+          <div class="sec-label">All crops in district</div>
+          <div class="tbl-wrap">
+            <table class="data-table">
+              <thead><tr><th>Crop</th><th>Season</th><th>Area (Ha)</th><th>Prod (MT)</th><th>Rank</th></tr></thead>
+              <tbody id="dv-crop-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
-      <div class="barchart-section">
-        <div class="barchart-label">Top 5 Crops by Area</div>
-        <div id="dv-barchart"></div>
-      </div>
-      <div class="section-label" style="margin-top:16px;">All crops grown in this district</div>
-      <div style="overflow-x:auto;">
-        <table class="crop-table">
-          <thead>
-            <tr>
-              <th>Crop</th>
-              <th>Season</th>
-              <th>Area (Ha)</th>
-              <th>Production (MT)</th>
-              <th>State Rank</th>
-            </tr>
-          </thead>
-          <tbody id="dv-crop-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
 
-<footer>
-  Data Source: Agricultural Statistics at a Glance 2022, ICRISAT District Database &nbsp;|&nbsp; CropBrain Maharashtra v1.0
-</footer>
+      <!-- POWER BOILERS DIRECTORY -->
+      <div class="tab-panel" id="tab-boilers">
+        <div class="boiler-summary">
+          <div class="b-stat"><span class="b-val" id="boiler-total-coal">—</span><span class="b-lbl">Coal MT/yr</span></div>
+          <div class="b-stat"><span class="b-val" id="boiler-pellet-potential">—</span><span class="b-lbl">Pellet potential (5%)</span></div>
+        </div>
+        <div class="filter-row" id="boiler-filter-bar">
+          <button class="f-btn active" onclick="filterBoilers('All')">All</button>
+          <button class="f-btn" onclick="filterBoilers('Power Plant')">Power Plant</button>
+          <button class="f-btn" onclick="filterBoilers('Cement')">Cement</button>
+          <button class="f-btn" onclick="filterBoilers('Steel')">Steel</button>
+          <button class="f-btn" onclick="filterBoilers('Sugar Mill')">Sugar</button>
+          <button class="f-btn" onclick="filterBoilers('Textile')">Textile</button>
+          <button class="f-btn" onclick="filterBoilers('Chemical')">Chemical</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>District</th><th>Type</th><th>Coal K MT/yr</th><th>Pellet K MT</th></tr></thead>
+            <tbody id="boiler-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- INDUSTRIAL SITES -->
+      <div class="tab-panel" id="tab-industries">
+        <div id="ind-summary"></div>
+        <div id="ind-filters"></div>
+        <div class="tbl-wrap">
+          <table class="data-table" id="ind-table">
+            <thead><tr><th>Company</th><th>District</th><th>Industry</th><th>TPH</th><th>Coal MT/yr</th><th>Pellet 5%</th></tr></thead>
+            <tbody id="ind-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- end panel-body -->
+  </div><!-- end analysis-panel -->
+</div><!-- end app -->
 
 <script>
 // ============================================================
-// DATA
+// DATA BLOCK (preserved)
 // ============================================================
 const DISTRICTS = [
   {name:"Mumbai", lat:18.96, lng:72.83},
@@ -1164,6 +1146,31 @@ const CROPS = {
   }
 };
 
+
+// ============================================================
+// RESIDUE FACTORS (MT residue per hectare cultivated)
+// ============================================================
+const RESIDUE_FACTORS = {
+  "Cotton":     3.5,
+  "Soybean":    2.0,
+  "Rice":       4.5,
+  "Wheat":      3.0,
+  "Sugarcane":  6.0,
+  "Jowar":      3.0,
+  "Maize":      4.0,
+  "Tur":        2.5,
+  "Bajra":      2.5,
+  "Groundnut":  2.0,
+  "Onion":      0.8,
+  "Grapes":     0.5,
+  "Orange":     0.4,
+  "Banana":     2.0,
+  "Pomegranate":0.5,
+  "Turmeric":   1.5
+};
+
+// ============================================================
+// UTILITY FUNCTIONS
 // ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
@@ -1216,6 +1223,20 @@ function getDistrictCrops(distName) {
   return result;
 }
 
+
+
+// ============================================================
+// HAVERSINE DISTANCE (km)
+// ============================================================
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 // ============================================================
 // STATE
 // ============================================================
@@ -1226,96 +1247,80 @@ let map = null;
 let geoLayer = null;
 let boilerLayerGroup = null;
 let boilerLayerVisible = false;
-let activeBoilerFilter = 'All';
+let indLayer = null;
+let indVisible = false;
+let activeBoilerFilter = "All";
+let searchMarker = null;
+let radiusCircle = null;
+let currentLoc = null; // {lat, lng, name}
+let currentRadius = 50; // km
 
 // ============================================================
-// MAP
+// MAP INIT
 // ============================================================
 function initMap() {
-  map = L.map('map', {
+  map = L.map("map", {
     center: [19.5, 76.5],
-    zoom: 6,
+    zoom: 7,
     zoomControl: true,
-    scrollWheelZoom: false
+    scrollWheelZoom: true
   });
 
-  // Subtle tile layer
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; CartoDB',
-    subdomains: 'abcd',
-    maxZoom: 10
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: "© CartoDB",
+    subdomains: "abcd",
+    maxZoom: 18
   }).addTo(map);
 
   loadGeoJSON();
 }
 
+// ============================================================
+// MAP COLOR + LEGEND
+// ============================================================
 function getColor(value, max, crop) {
-  if (!value || value === 0) return '#e8e0d0';
+  if (!value || value === 0) return "#e8e0d0";
   const ratio = value / max;
   if (crop) {
-    // Green scale for crops
-    const greens = ['#c7e9c0','#a1d99b','#74c476','#41ab5d','#238b45','#006d2c','#00441b'];
-    const idx = Math.min(Math.floor(ratio * greens.length), greens.length - 1);
-    return greens[idx];
+    const greens = ["#c7e9c0","#a1d99b","#74c476","#41ab5d","#238b45","#006d2c","#00441b"];
+    return greens[Math.min(Math.floor(ratio * greens.length), greens.length - 1)];
   } else {
-    // Earth/brown scale for total
-    const browns = ['#f5e6d3','#e8c9a0','#d4a853','#c4956a','#a0714a','#8B4513','#5a2d0c'];
-    const idx = Math.min(Math.floor(ratio * browns.length), browns.length - 1);
-    return browns[idx];
+    const browns = ["#f5e6d3","#e8c9a0","#d4a853","#c4956a","#a0714a","#8B4513","#5a2d0c"];
+    return browns[Math.min(Math.floor(ratio * browns.length), browns.length - 1)];
   }
 }
 
 function getDistrictNameFromFeature(feature) {
-  // Try multiple property name conventions
   const p = feature.properties;
-  return p.district || p.DISTRICT || p.NAME_2 || p.name || p.NAME || p.District || '';
+  return p.district || p.DISTRICT || p.NAME_2 || p.name || p.NAME || p.District || "";
 }
 
 function matchDistrictName(geoName) {
-  // Normalize and match
-  const norm = s => s.toLowerCase().replace(/[\s\-_\.]/g,'').replace(/^mumbai$/,'mumbai');
+  const norm = s => s.toLowerCase().replace(/[\s\-_\.]/g,"").replace(/^mumbai$/,"mumbai");
   const gn = norm(geoName);
-  // Direct match
   const direct = DISTRICTS.find(d => norm(d.name) === gn);
   if (direct) return direct.name;
-  // Partial match
   const partial = DISTRICTS.find(d => gn.includes(norm(d.name)) || norm(d.name).includes(gn));
   if (partial) return partial.name;
-  // Special cases
   const special = {
-    'mumbaisuburban': 'Mumbai Suburban',
-    'mumbaisuburbandistrict': 'Mumbai Suburban',
-    'greatermumai': 'Mumbai',
-    'osmanabad': 'Osmanabad',
-    'aurangabad': 'Aurangabad',
-    'ahmadnagar': 'Ahmednagar',
-    'ahmednagar': 'Ahmednagar',
+    "mumbaisuburban":"Mumbai Suburban","mumbaisuburbandistrict":"Mumbai Suburban",
+    "greatermumai":"Mumbai","osmanabad":"Osmanabad",
+    "aurangabad":"Aurangabad","ahmadnagar":"Ahmednagar","ahmednagar":"Ahmednagar"
   };
-  if (special[gn]) return special[gn];
-  return null;
+  return special[gn] || null;
 }
 
 function loadGeoJSON() {
-  fetch('https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/state_ut/maharashtra/district/maharashtra_district.json')
-    .then(r => {
-      if (!r.ok) throw new Error('Network error');
-      return r.json();
-    })
-    .then(data => {
-      renderGeoLayer(data);
-    })
-    .catch(() => {
-      // Show fallback message but keep map
-      document.getElementById('map-fallback').style.display = 'block';
-      renderFallbackMarkers();
-    });
+  fetch("https://raw.githubusercontent.com/HindustanTimesLabs/shapefiles/master/state_ut/maharashtra/district/maharashtra_district.json")
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(renderGeoLayer)
+    .catch(renderFallbackMarkers);
 }
 
 function renderGeoLayer(data) {
-  if (geoLayer) { map.removeLayer(geoLayer); }
-
+  if (geoLayer) map.removeLayer(geoLayer);
   const values = selectedCrop
-    ? Object.entries(CROPS[selectedCrop].districts).reduce((acc, [k,v]) => { acc[k]=v.area; return acc; }, {})
+    ? Object.entries(CROPS[selectedCrop].districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{})
     : districtTotals;
   const max = Math.max(...Object.values(values));
 
@@ -1324,288 +1329,68 @@ function renderGeoLayer(data) {
       const geoName = getDistrictNameFromFeature(feature);
       const distName = matchDistrictName(geoName);
       const val = distName ? (values[distName] || 0) : 0;
-      return {
-        fillColor: getColor(val, max, !!selectedCrop),
-        weight: 1,
-        color: '#a08060',
-        fillOpacity: 0.75
-      };
+      return { fillColor: getColor(val, max, !!selectedCrop), weight: 1, color: "#a08060", fillOpacity: 0.72 };
     },
     onEachFeature: (feature, layer) => {
       const geoName = getDistrictNameFromFeature(feature);
       const distName = matchDistrictName(geoName) || geoName;
       layer.on({
         mouseover: e => {
-          const l = e.target;
-          l.setStyle({ weight: 2.5, color: '#5a2d0c', fillOpacity: 0.9 });
-          l.bringToFront();
-          showTooltip(l, distName);
+          e.target.setStyle({ weight: 2.5, color: "#5a2d0c", fillOpacity: 0.9 });
+          e.target.bringToFront();
+          showTooltip(layer, distName);
         },
-        mouseout: e => {
-          geoLayer.resetStyle(e.target);
-        },
-        click: () => {
-          const matched = matchDistrictName(geoName);
-          if (matched) selectDistrict(matched);
-        }
+        mouseout: () => geoLayer.resetStyle(layer),
+        click: () => { const m = matchDistrictName(geoName); if (m) selectDistrict(m); }
       });
     }
   }).addTo(map);
-
   updateLegend(max);
   map.fitBounds(geoLayer.getBounds());
 }
 
 function showTooltip(layer, distName) {
-  let content = `<div class="tooltip-district">${distName}</div>`;
+  let content = `<div style="font-weight:700;font-size:0.9rem;color:#1A3A1F;margin-bottom:4px;">${distName}</div>`;
   if (selectedCrop) {
     const cd = CROPS[selectedCrop].districts[distName];
     if (cd) {
-      content += `<div class="tooltip-row">${selectedCrop} Area: <span class="tooltip-val">${fmtFull(cd.area)} ha</span></div>`;
-      content += `<div class="tooltip-row">Production: <span class="tooltip-val">${fmtFull(cd.prod)} MT</span></div>`;
+      content += `<div style="font-size:0.75rem;color:#555;">Area: <b style="font-family:monospace">${fmtFull(cd.area)} ha</b></div>`;
+      content += `<div style="font-size:0.75rem;color:#555;">Production: <b style="font-family:monospace">${fmtFull(cd.prod)} MT</b></div>`;
     } else {
-      content += `<div class="tooltip-row" style="color:#aaa">No ${selectedCrop} data</div>`;
+      content += `<div style="font-size:0.73rem;color:#aaa">No ${selectedCrop} data</div>`;
     }
   } else {
     const total = districtTotals[distName] || 0;
-    content += `<div class="tooltip-row">Total Cultivated: <span class="tooltip-val">${fmtFull(total)} ha</span></div>`;
-    content += `<div class="tooltip-row" style="font-size:0.65rem;color:#aaa;margin-top:3px;">Click to view district</div>`;
+    content += `<div style="font-size:0.75rem;color:#555">Total cultivated: <b style="font-family:monospace">${fmtFull(total)} ha</b></div>`;
+    content += `<div style="font-size:0.67rem;color:#aaa;margin-top:4px">Click to view district detail</div>`;
   }
-  layer.bindPopup(content, { closeButton: false, offset: [0, -4] }).openPopup();
+  layer.bindPopup(content, { closeButton: false, offset: [0, -2] }).openPopup();
 }
 
 function renderFallbackMarkers() {
   DISTRICTS.forEach(d => {
     const val = districtTotals[d.name] || 0;
     L.circleMarker([d.lat, d.lng], {
-      radius: 6 + Math.sqrt(val/50000),
-      fillColor: '#4A7C59',
-      color: '#2D5016',
-      weight: 1,
-      fillOpacity: 0.7
+      radius: 6 + Math.sqrt(val / 50000),
+      fillColor: "#4A7C59", color: "#2D5016", weight: 1, fillOpacity: 0.7
     }).addTo(map).bindPopup(`<b>${d.name}</b><br>Area: ${fmtFull(val)} ha`);
   });
 }
 
 function updateLegend(max) {
   const isCrop = !!selectedCrop;
-  document.getElementById('legend-title').textContent = isCrop ? `${selectedCrop.toUpperCase()} AREA (Ha)` : 'TOTAL AREA (Ha)';
+  document.getElementById("legend-title").textContent = isCrop ? `${selectedCrop.toUpperCase()} AREA (Ha)` : "TOTAL AREA (Ha)";
   const colors = isCrop
-    ? ['#c7e9c0','#74c476','#41ab5d','#238b45','#00441b']
-    : ['#f5e6d3','#e8c9a0','#d4a853','#a0714a','#5a2d0c'];
-  const labels = [0,0.2,0.4,0.6,0.8].map(f => fmt(Math.round(f*max)));
-  const rows = colors.map((c,i) => `<div class="legend-row"><div class="legend-swatch" style="background:${c}"></div><span>${labels[i]}+</span></div>`).join('');
-  document.getElementById('legend-rows').innerHTML = rows;
+    ? ["#c7e9c0","#74c476","#41ab5d","#238b45","#00441b"]
+    : ["#f5e6d3","#e8c9a0","#d4a853","#a0714a","#5a2d0c"];
+  const labels = [0, 0.2, 0.4, 0.6, 0.8].map(f => fmt(Math.round(f * max)));
+  document.getElementById("legend-rows").innerHTML = colors.map((c, i) =>
+    `<div class="legend-row"><div class="legend-swatch" style="background:${c}"></div><span>${labels[i]}+</span></div>`
+  ).join("");
 }
 
 // ============================================================
-// TAB SWITCHING
-// ============================================================
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
-  document.getElementById(`tab-${tab}`).classList.add('active');
-}
-
-// ============================================================
-// CROP EXPLORER
-// ============================================================
-function buildCropGrid() {
-  const grid = document.getElementById('crop-grid');
-  Object.entries(CROPS).forEach(([name, crop]) => {
-    const card = document.createElement('div');
-    card.className = 'crop-card';
-    card.id = `crop-card-${name}`;
-    card.innerHTML = `<span class="crop-emoji">${crop.emoji}</span><span class="crop-name">${name}</span><span class="crop-season">${crop.season}</span>`;
-    card.onclick = () => selectCrop(name);
-    grid.appendChild(card);
-  });
-}
-
-function selectCrop(cropName) {
-  // Deselect previous
-  document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById(`crop-card-${cropName}`).classList.add('selected');
-  selectedCrop = cropName;
-
-  const crop = CROPS[cropName];
-  const { totalArea, totalProd, ranked } = getCropTotals(cropName);
-  const maxArea = ranked[0]?.area || 1;
-
-  document.getElementById('crop-detail').classList.add('visible');
-  document.getElementById('detail-emoji').textContent = crop.emoji;
-  document.getElementById('detail-name').textContent = cropName;
-  document.getElementById('detail-meta').textContent = `Season: ${crop.season} · Major crop of Maharashtra`;
-  document.getElementById('stat-area').textContent = fmt(totalArea);
-  document.getElementById('stat-prod').textContent = fmt(totalProd);
-  document.getElementById('stat-districts').textContent = ranked.length;
-
-  // Build rank table
-  const tbody = document.getElementById('rank-tbody');
-  tbody.innerHTML = '';
-  ranked.forEach((r, i) => {
-    const barWidth = Math.round((r.area / maxArea) * 100);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="rank-num">${i+1}</td>
-      <td><a class="district-link" onclick="selectDistrict('${r.dist}')">${r.dist}</a></td>
-      <td><span style="font-family:'Fira Code',monospace;font-size:0.72rem;">${fmtFull(r.area)}</span></td>
-      <td class="prod-cell">${fmtFull(r.prod)}</td>
-      <td class="bar-cell"><div class="mini-bar" style="width:${barWidth}%"></div></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Update map
-  if (geoLayer && map) {
-    const values = Object.entries(crop.districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{});
-    const max = Math.max(...Object.values(values));
-    geoLayer.setStyle(feature => {
-      const geoName = getDistrictNameFromFeature(feature);
-      const distName = matchDistrictName(geoName);
-      const val = distName ? (values[distName] || 0) : 0;
-      return {
-        fillColor: getColor(val, max, true),
-        weight: 1,
-        color: '#a08060',
-        fillOpacity: 0.75
-      };
-    });
-    updateLegend(max);
-  }
-}
-
-// ============================================================
-// DISTRICT VIEW
-// ============================================================
-function buildDistrictDropdown() {
-  const sel = document.getElementById('district-select');
-  DISTRICTS.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(d => {
-    const opt = document.createElement('option');
-    opt.value = d.name;
-    opt.textContent = d.name;
-    sel.appendChild(opt);
-  });
-}
-
-function selectDistrict(distName) {
-  selectedDistrict = distName;
-  switchTab('district');
-  document.getElementById('district-select').value = distName;
-  loadDistrict(distName);
-}
-
-function loadDistrict(distName) {
-  if (!distName) { document.getElementById('district-detail').classList.remove('visible'); return; }
-
-  const crops = getDistrictCrops(distName);
-  const totalArea = crops.reduce((s,c)=>s+c.area, 0);
-  const dominant = crops[0];
-
-  document.getElementById('district-detail').classList.add('visible');
-  document.getElementById('dv-name').textContent = distName;
-
-  // Chips
-  document.getElementById('dv-chips').innerHTML = `
-    <div class="d-chip">Area: ${fmtFull(totalArea)} ha</div>
-    <div class="d-chip">Dominant: ${dominant?.emoji || ''} ${dominant?.cropName || 'N/A'}</div>
-    <div class="d-chip">Crops: ${crops.length}</div>
-  `;
-
-  // Bar chart top 5
-  const top5 = crops.slice(0,5);
-  const maxArea = top5[0]?.area || 1;
-  const bc = document.getElementById('dv-barchart');
-  bc.innerHTML = top5.map(c => {
-    const pct = Math.round((c.area/maxArea)*100);
-    return `<div class="hbar-row">
-      <div class="hbar-label">${c.emoji} ${c.cropName}</div>
-      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div>
-      <div class="hbar-val">${fmt(c.area)} ha</div>
-    </div>`;
-  }).join('');
-
-  // Table
-  const tbody = document.getElementById('dv-crop-tbody');
-  tbody.innerHTML = '';
-  crops.forEach(c => {
-    const badgeClass = c.rank===1?'r1':c.rank===2?'r2':c.rank===3?'r3':'';
-    const badge = c.rank<=3 ? `<span class="rank-badge ${badgeClass}">#${c.rank}</span>` : `<span class="state-rank">#${c.rank}</span>`;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span style="margin-right:5px">${c.emoji}</span><strong style="cursor:pointer;color:var(--earth)" onclick="selectCrop('${c.cropName}')">${c.cropName}</strong></td>
-      <td><span style="font-family:'Fira Code',monospace;font-size:0.65rem;color:var(--muted)">${c.season}</span></td>
-      <td style="font-family:'Fira Code',monospace;font-size:0.72rem">${fmtFull(c.area)}</td>
-      <td style="font-family:'Fira Code',monospace;font-size:0.72rem;color:var(--earth)">${fmtFull(c.prod)}</td>
-      <td>${badge} <span style="font-size:0.6rem;color:var(--muted)">of ${c.totalDistricts}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Update map highlight
-  if (geoLayer) {
-    geoLayer.setStyle(feature => {
-      const geoName = getDistrictNameFromFeature(feature);
-      const dn = matchDistrictName(geoName);
-      const isSelected = dn === distName;
-      const total = dn ? (districtTotals[dn] || 0) : 0;
-      const max = Math.max(...Object.values(districtTotals));
-      return {
-        fillColor: isSelected ? '#D4A853' : getColor(total, max, false),
-        weight: isSelected ? 3 : 1,
-        color: isSelected ? '#5a2d0c' : '#a08060',
-        fillOpacity: isSelected ? 0.9 : 0.65
-      };
-    });
-  }
-}
-
-// ============================================================
-// INDUSTRIES LAYER
-// ============================================================
-let indLayer = null, indVisible = false;
-function toggleIndustries() {
-  var btn = document.getElementById('btn-industries');
-  if (!indVisible) {
-    if (!indLayer) {
-      indLayer = L.layerGroup();
-      IND_BOILERS.forEach(function(b) {
-        var tph = b[5];
-        var r = tph > 100 ? 14 : tph > 50 ? 11 : tph > 20 ? 8 : 5;
-        var col = IND_BOILER_COLORS[b[4]] || '#888';
-        var mk = L.circleMarker([b[1], b[2]], {
-          radius: r, color: '#fff', weight: 1,
-          fillColor: col, fillOpacity: 0.85
-        });
-        mk.bindPopup(
-          '<b>' + b[0] + '</b><br>' +
-          '<span style="background:' + col + ';color:#fff;padding:1px 6px;border-radius:3px;font-size:.7rem">' + b[4] + '</span> &nbsp;' + b[3] + '<br>' +
-          'Boiler: <b>' + b[5] + ' TPH</b> &nbsp;|&nbsp; Fuel: ' + b[6] + '<br>' +
-          'Coal equiv: <b>' + b[7].toLocaleString() + ' MT/yr</b><br>' +
-          '🌿 Pellet demand (5%): <b>' + b[8].toLocaleString() + ' MT/yr</b><br>' +
-          '📍 ' + b[9] + '<br><i style="font-size:.75rem">' + b[10] + '</i>'
-        );
-        mk.on('click', function() { map.setView([b[1], b[2]], 10); });
-        indLayer.addLayer(mk);
-      });
-    }
-    indLayer.addTo(map);
-    indVisible = true;
-    btn.style.background = 'var(--forest)';
-    btn.style.color = '#fff';
-    btn.style.borderColor = 'var(--forest)';
-  } else {
-    map.removeLayer(indLayer);
-    indVisible = false;
-    btn.style.background = '';
-    btn.style.color = '';
-    btn.style.borderColor = '';
-  }
-}
-
-// ============================================================
-// BOILER LAYER
+// BOILER LAYERS
 // ============================================================
 function getBoilerRadius(tpa) {
   if (tpa > 5000000) return 16;
@@ -1616,199 +1401,597 @@ function getBoilerRadius(tpa) {
 
 function buildBoilerPopup(b) {
   const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
-  const color = BOILER_COLORS[category] || '#555';
+  const color = BOILER_COLORS[category] || "#555";
   const pellet5 = Math.round(tpa * 0.05);
-  return `
-    <div style="min-width:220px;">
-      <div style="font-weight:700;font-size:0.95rem;color:#1a1a1a;margin-bottom:4px;">${name}</div>
-      <div style="display:inline-block;background:${color};color:white;border-radius:8px;padding:2px 8px;font-size:0.62rem;font-weight:700;margin-bottom:8px;">${category}</div>
-      <div style="font-size:0.75rem;color:#555;line-height:1.6;">
-        <div><b>District:</b> ${district}</div>
-        <div><b>Capacity:</b> ${capacity}</div>
-        <div><b>Operator:</b> ${operator}</div>
-        <div><b>Coal TPY:</b> <span style="font-family:monospace;color:#C0392B;">${tpa.toLocaleString('en-IN')}</span></div>
-        <div><b>Pellet Demand (5%):</b> <span style="font-family:monospace;color:#27AE60;">${pellet5.toLocaleString('en-IN')} MT/yr</span></div>
-        <div style="margin-top:6px;color:#777;font-size:0.68rem;">${notes}</div>
-      </div>
-    </div>`;
+  return `<div style="min-width:220px;">
+    <div style="font-weight:700;font-size:0.9rem;color:#1a1a1a;margin-bottom:5px;">${name}</div>
+    <span style="background:${color};color:#fff;border-radius:6px;padding:2px 8px;font-size:0.6rem;font-weight:700">${category}</span>
+    <div style="font-size:0.73rem;color:#555;line-height:1.7;margin-top:7px;">
+      <div><b>District:</b> ${district} &nbsp;|&nbsp; <b>Capacity:</b> ${capacity}</div>
+      <div><b>Coal TPY:</b> <span style="font-family:monospace;color:#C0392B;">${tpa.toLocaleString("en-IN")}</span></div>
+      <div><b>Pellet Demand (5%):</b> <span style="font-family:monospace;color:#27AE60;font-weight:700">${pellet5.toLocaleString("en-IN")} MT/yr</span></div>
+      <div style="color:#777;font-size:0.67rem;margin-top:5px;">${notes}</div>
+    </div></div>`;
 }
 
-function buildBoilerMarkers() {
-  if (!map) return;
-  if (boilerLayerGroup) {
-    boilerLayerGroup.clearLayers();
-  } else {
+function togglePowerBoilers() {
+  const btn = document.getElementById("btn-power");
+  const legend = document.getElementById("boiler-legend");
+  if (!boilerLayerGroup) {
     boilerLayerGroup = L.layerGroup();
+    BOILERS.forEach(b => {
+      const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
+      const color = BOILER_COLORS[category] || "#555";
+      L.circleMarker([lat, lng], {
+        radius: getBoilerRadius(tpa), fillColor: color, color: "#fff", weight: 1.5, fillOpacity: 0.88
+      }).bindPopup(buildBoilerPopup(b), { maxWidth: 300 })
+        .on("click", function() { map.setView([lat, lng], 9); this.openPopup(); })
+        .addTo(boilerLayerGroup);
+    });
   }
-  BOILERS.forEach(b => {
-    const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
-    const color = BOILER_COLORS[category] || '#555';
-    const radius = getBoilerRadius(tpa);
-    const marker = L.circleMarker([lat, lng], {
-      radius: radius,
-      fillColor: color,
-      color: '#fff',
-      weight: 1.5,
-      fillOpacity: 0.88
-    });
-    marker.bindPopup(buildBoilerPopup(b), { maxWidth: 300 });
-    marker.on('click', function() {
-      map.setView([lat, lng], 9);
-      this.openPopup();
-    });
-    boilerLayerGroup.addLayer(marker);
-  });
-}
-
-function toggleBoilerLayer() {
-  const btn = document.getElementById('boiler-toggle-btn');
-  const boilerLegend = document.getElementById('boiler-legend');
-  if (!boilerLayerGroup) buildBoilerMarkers();
   if (boilerLayerVisible) {
     map.removeLayer(boilerLayerGroup);
     boilerLayerVisible = false;
-    btn.textContent = '🏭 Show Boilers';
-    btn.classList.remove('active');
-    boilerLegend.style.display = 'none';
+    btn.className = "layer-btn";
+    btn.textContent = "⚡ Power Boilers";
+    legend.style.display = "none";
   } else {
     boilerLayerGroup.addTo(map);
     boilerLayerVisible = true;
-    btn.textContent = '🏭 Hide Boilers';
-    btn.classList.add('active');
-    boilerLegend.style.display = 'block';
+    btn.className = "layer-btn active";
+    btn.textContent = "⚡ Hide Power";
+    legend.style.display = "block";
+  }
+}
+
+function toggleIndustries() {
+  const btn = document.getElementById("btn-ind");
+  if (!indLayer) {
+    indLayer = L.layerGroup();
+    IND_BOILERS.forEach(b => {
+      const tph = b[5];
+      const r = tph > 100 ? 13 : tph > 50 ? 10 : tph > 20 ? 7 : 5;
+      const col = IND_BOILER_COLORS[b[4]] || "#888";
+      L.circleMarker([b[1], b[2]], {
+        radius: r, color: "#fff", weight: 1, fillColor: col, fillOpacity: 0.85
+      }).bindPopup(
+        `<div style="min-width:210px;">
+          <b style="font-size:0.88rem">${b[0]}</b><br>
+          <span style="background:${col};color:#fff;border-radius:5px;padding:1px 7px;font-size:0.6rem;font-weight:700">${b[4]}</span>
+          <span style="font-size:0.72rem;color:#555;margin-left:5px">${b[3]}</span>
+          <div style="font-size:0.73rem;color:#555;line-height:1.7;margin-top:6px;">
+            <div>Boiler: <b>${b[5]} TPH</b> &nbsp;|&nbsp; Fuel: ${b[6]}</div>
+            <div>Coal equiv: <b style="font-family:monospace;color:#C0392B">${b[7].toLocaleString()} MT/yr</b></div>
+            <div>🌿 Pellet demand (5%): <b style="font-family:monospace;color:#27AE60">${b[8].toLocaleString()} MT/yr</b></div>
+            <div style="color:#777;font-size:0.67rem;margin-top:4px">${b[10]}</div>
+          </div></div>`
+      ).on("click", function() { map.setView([b[1], b[2]], 11); this.openPopup(); })
+       .addTo(indLayer);
+    });
+  }
+  if (indVisible) {
+    map.removeLayer(indLayer);
+    indVisible = false;
+    btn.className = "layer-btn";
+    btn.textContent = "🏗️ Industrial Sites";
+  } else {
+    indLayer.addTo(map);
+    indVisible = true;
+    btn.className = "layer-btn active-green";
+    btn.textContent = "🏗️ Hide Industrial";
   }
 }
 
 // ============================================================
-// BOILER DIRECTORY TAB
+// SEARCH / GEOCODING
+// ============================================================
+let searchTimeout = null;
+
+document.getElementById("search-input").addEventListener("input", function() {
+  clearTimeout(searchTimeout);
+  const q = this.value.trim();
+  if (q.length < 2) { hideSearchResults(); return; }
+  searchTimeout = setTimeout(() => doSearch(q), 350);
+});
+
+document.getElementById("search-input").addEventListener("keydown", function(e) {
+  if (e.key === "Escape") { hideSearchResults(); this.blur(); }
+});
+
+document.addEventListener("click", function(e) {
+  if (!document.getElementById("search-zone").contains(e.target)) hideSearchResults();
+});
+
+function hideSearchResults() {
+  document.getElementById("search-results").style.display = "none";
+}
+
+async function doSearch(q) {
+  const resultsDiv = document.getElementById("search-results");
+  const results = [];
+
+  // 1. Match districts
+  const qLow = q.toLowerCase();
+  DISTRICTS.forEach(d => {
+    if (d.name.toLowerCase().includes(qLow)) {
+      results.push({ name: d.name, sub: "Maharashtra District", lat: d.lat, lng: d.lng, type: "district" });
+    }
+  });
+
+  // 2. Match power boilers
+  BOILERS.forEach(b => {
+    if (b[0].toLowerCase().includes(qLow)) {
+      results.push({ name: b[0], sub: `${b[4]} · ${b[3]}`, lat: b[1], lng: b[2], type: "boiler" });
+    }
+  });
+
+  // 3. Match industrial sites
+  IND_BOILERS.forEach(b => {
+    if (b[0].toLowerCase().includes(qLow)) {
+      results.push({ name: b[0], sub: `${b[4]} · ${b[3]}`, lat: b[1], lng: b[2], type: "industry" });
+    }
+  });
+
+  // 4. Nominatim geocoding for anything not matched yet
+  if (results.length < 3) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}+Maharashtra&format=json&limit=4&countrycodes=in&accept-language=en`;
+      const res = await fetch(url);
+      const geo = await res.json();
+      geo.forEach(item => {
+        const shortName = item.display_name.split(",")[0];
+        const subName = item.display_name.split(",").slice(1, 3).join(",").trim();
+        results.push({ name: shortName, sub: subName, lat: parseFloat(item.lat), lng: parseFloat(item.lon), type: "geo" });
+      });
+    } catch(e) {}
+  }
+
+  // Deduplicate & limit
+  const seen = new Set();
+  const unique = results.filter(r => {
+    const key = `${r.name}|${r.lat.toFixed(3)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 7);
+
+  if (unique.length === 0) {
+    resultsDiv.innerHTML = `<div class="search-result-item"><span class="search-result-sub">No results found</span></div>`;
+  } else {
+    const icons = { district: "📍", boiler: "⚡", industry: "🏗️", geo: "🔍" };
+    resultsDiv.innerHTML = unique.map(r =>
+      `<div class="search-result-item" onclick="selectSearchResult(${r.lat}, ${r.lng}, '${r.name.replace(/'/g,"\'")}', '${r.sub.replace(/'/g,"\'")}')">
+        <span class="search-result-name">${icons[r.type] || "📍"} ${r.name}</span>
+        <div class="search-result-sub">${r.sub}</div>
+      </div>`
+    ).join("");
+  }
+  resultsDiv.style.display = "block";
+}
+
+function selectSearchResult(lat, lng, name, sub) {
+  document.getElementById("search-input").value = name;
+  hideSearchResults();
+  map.setView([lat, lng], 10, { animate: true });
+  setLocationPin(lat, lng, name, sub);
+}
+
+function setLocationPin(lat, lng, name, sub) {
+  // Remove previous
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+
+  currentLoc = { lat, lng, name };
+
+  // Custom marker
+  const icon = L.divIcon({
+    html: `<div style="background:var(--forest);color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;border:3px solid white;box-shadow:0 3px 12px rgba(0,0,0,0.3)">📍</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    className: ""
+  });
+  searchMarker = L.marker([lat, lng], { icon }).addTo(map);
+
+  // Draw radius circle
+  radiusCircle = L.circle([lat, lng], {
+    radius: currentRadius * 1000,
+    fillColor: "#1A3A1F",
+    fillOpacity: 0.06,
+    color: "#1A3A1F",
+    weight: 1.5,
+    dashArray: "6 4"
+  }).addTo(map);
+
+  // Update assessment panel
+  updateSiteAssessment(lat, lng, name, sub);
+  document.getElementById("site-assessment").classList.add("visible", "fade-in");
+}
+
+// Allow clicking directly on the map to set a pin
+map && map.on("click", function(e) {
+  const { lat, lng } = e.latlng;
+  setLocationPin(lat, lng, `${lat.toFixed(4)}, ${lng.toFixed(4)}`, "Custom map location");
+});
+
+// ============================================================
+// RADIUS CONTROL
+// ============================================================
+document.querySelectorAll(".radius-pill").forEach(btn => {
+  btn.addEventListener("click", function() {
+    document.querySelectorAll(".radius-pill").forEach(b => b.classList.remove("active"));
+    this.classList.add("active");
+    currentRadius = parseInt(this.dataset.r);
+    if (currentLoc) {
+      if (radiusCircle) {
+        radiusCircle.setRadius(currentRadius * 1000);
+      }
+      updateSiteAssessment(currentLoc.lat, currentLoc.lng, currentLoc.name, "");
+    }
+  });
+});
+
+// ============================================================
+// SITE ASSESSMENT ENGINE
+// ============================================================
+function updateSiteAssessment(lat, lng, name, sub) {
+  document.getElementById("loc-name").textContent = name;
+  document.getElementById("loc-sub").textContent = sub || `${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E`;
+  document.getElementById("a-radius-label").textContent = `within ${currentRadius} km`;
+
+  // Find districts within radius
+  const nearDistricts = DISTRICTS
+    .map(d => ({ ...d, dist: haversine(lat, lng, d.lat, d.lng) }))
+    .filter(d => d.dist <= currentRadius)
+    .sort((a, b) => a.dist - b.dist);
+
+  // Compute crop residue per district
+  let totalResidue = 0;
+  const districtResidue = nearDistricts.map(d => {
+    let residue = 0;
+    const cropBreakdown = [];
+    Object.entries(CROPS).forEach(([cropName, crop]) => {
+      const data = crop.districts[d.name];
+      if (data) {
+        const factor = RESIDUE_FACTORS[cropName] || 1.5;
+        const r = Math.round(data.area * factor);
+        residue += r;
+        cropBreakdown.push({ cropName, emoji: crop.emoji, residue: r });
+      }
+    });
+    cropBreakdown.sort((a, b) => b.residue - a.residue);
+    totalResidue += residue;
+    return { ...d, residue, topCrop: cropBreakdown[0] };
+  }).sort((a, b) => b.residue - a.residue);
+
+  // Find power boilers within radius
+  const nearBoilers = BOILERS
+    .map(b => ({ b, dist: haversine(lat, lng, b[1], b[2]) }))
+    .filter(x => x.dist <= currentRadius)
+    .sort((a, b) => a.dist - b.dist);
+
+  // Find industrial boilers within radius
+  const nearInd = IND_BOILERS
+    .map(b => ({ b, dist: haversine(lat, lng, b[1], b[2]) }))
+    .filter(x => x.dist <= currentRadius)
+    .sort((a, b) => a.dist - b.dist);
+
+  const totalPowerPellet = nearBoilers.reduce((s, x) => s + Math.round(x.b[7] * 0.05), 0);
+  const totalIndPellet = nearInd.reduce((s, x) => s + x.b[8], 0);
+
+  // Update summary cards
+  document.getElementById("a-residue").textContent = fmt(totalResidue);
+  document.getElementById("a-power-demand").textContent = fmt(totalPowerPellet + totalIndPellet);
+  document.getElementById("a-power-count").textContent = nearBoilers.length;
+  document.getElementById("a-ind-count").textContent = nearInd.length;
+
+  // Render crop residue list
+  const residueList = document.getElementById("residue-list");
+  if (districtResidue.length === 0) {
+    residueList.innerHTML = `<div class="assess-empty">No districts within ${currentRadius} km</div>`;
+  } else {
+    const maxRes = districtResidue[0].residue || 1;
+    residueList.innerHTML = districtResidue.slice(0, 8).map(d => {
+      const barW = Math.round((d.residue / maxRes) * 60);
+      return `<div class="assess-row" onclick="selectDistrict('${d.name}')">
+        <span class="dot" style="background:#4E8C5A"></span>
+        <span class="assess-row-name">${d.name}</span>
+        <span class="assess-row-dist">${d.topCrop ? d.topCrop.emoji + " " + d.topCrop.cropName : ""}
+          <div style="background:#ddf0e4;height:4px;border-radius:2px;width:${barW}px;display:inline-block;vertical-align:middle;margin-left:4px"></div>
+        </span>
+        <span class="assess-row-val green">${fmt(d.residue)} MT</span>
+      </div>`;
+    }).join("");
+  }
+
+  // Render power boiler customers
+  const powerList = document.getElementById("power-customer-list");
+  if (nearBoilers.length === 0) {
+    powerList.innerHTML = `<div class="assess-empty">No power plants within ${currentRadius} km</div>`;
+  } else {
+    powerList.innerHTML = nearBoilers.slice(0, 8).map(({ b, dist }) => {
+      const color = BOILER_COLORS[b[4]] || "#555";
+      const pellet = fmt(Math.round(b[7] * 0.05));
+      return `<div class="assess-row" onclick="focusBoilerOnMap(${b[1]},${b[2]})">
+        <span class="dot" style="background:${color}"></span>
+        <span class="assess-row-name">${b[0]}</span>
+        <span class="assess-row-dist">${dist.toFixed(0)} km</span>
+        <span class="assess-row-val">${pellet} MT</span>
+      </div>`;
+    }).join("");
+  }
+
+  // Render industrial customers
+  const indList = document.getElementById("ind-customer-list");
+  if (nearInd.length === 0) {
+    indList.innerHTML = `<div class="assess-empty">No industrial sites within ${currentRadius} km</div>`;
+  } else {
+    indList.innerHTML = nearInd.slice(0, 10).map(({ b, dist }) => {
+      const color = IND_BOILER_COLORS[b[4]] || "#888";
+      return `<div class="assess-row" onclick="focusIndOnMap(${b[1]},${b[2]})">
+        <span class="dot" style="background:${color}"></span>
+        <span class="assess-row-name">${b[0]}</span>
+        <span class="assess-row-dist">${dist.toFixed(0)} km</span>
+        <span class="assess-row-val">${fmt(b[8])} MT</span>
+      </div>`;
+    }).join("");
+  }
+}
+
+function focusBoilerOnMap(lat, lng) {
+  map.setView([lat, lng], 10, { animate: true });
+  if (!boilerLayerVisible) togglePowerBoilers();
+  boilerLayerGroup && boilerLayerGroup.eachLayer(lyr => {
+    const ll = lyr.getLatLng();
+    if (Math.abs(ll.lat - lat) < 0.002 && Math.abs(ll.lng - lng) < 0.002) lyr.openPopup();
+  });
+}
+
+function focusIndOnMap(lat, lng) {
+  map.setView([lat, lng], 11, { animate: true });
+  if (!indVisible) toggleIndustries();
+  indLayer && indLayer.eachLayer(lyr => {
+    const ll = lyr.getLatLng();
+    if (Math.abs(ll.lat - lat) < 0.002 && Math.abs(ll.lng - lng) < 0.002) lyr.openPopup();
+  });
+}
+
+function clearSiteAssessment() {
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+  currentLoc = null;
+  document.getElementById("search-input").value = "";
+  document.getElementById("site-assessment").classList.remove("visible");
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add("active");
+  document.getElementById(`tab-${tab}`).classList.add("active");
+}
+
+// ============================================================
+// CROP EXPLORER
+// ============================================================
+function buildCropGrid() {
+  const grid = document.getElementById("crop-grid");
+  Object.entries(CROPS).forEach(([name, crop]) => {
+    const card = document.createElement("div");
+    card.className = "crop-card";
+    card.id = `crop-card-${name}`;
+    card.innerHTML = `<span class="crop-emoji">${crop.emoji}</span><span class="crop-name">${name}</span><span class="crop-season">${crop.season}</span>`;
+    card.onclick = () => selectCrop(name);
+    grid.appendChild(card);
+  });
+}
+
+function selectCrop(cropName) {
+  document.querySelectorAll(".crop-card").forEach(c => c.classList.remove("selected"));
+  document.getElementById(`crop-card-${cropName}`).classList.add("selected");
+  selectedCrop = cropName;
+  const crop = CROPS[cropName];
+  const { totalArea, totalProd, ranked } = getCropTotals(cropName);
+  const maxArea = ranked[0]?.area || 1;
+
+  document.getElementById("crop-detail").classList.add("visible");
+  document.getElementById("detail-emoji").textContent = crop.emoji;
+  document.getElementById("detail-name").textContent = cropName;
+  document.getElementById("detail-meta").textContent = `Season: ${crop.season} · Maharashtra 2021-22`;
+  document.getElementById("stat-area").textContent = fmt(totalArea);
+  document.getElementById("stat-prod").textContent = fmt(totalProd);
+  document.getElementById("stat-districts").textContent = ranked.length;
+
+  const tbody = document.getElementById("rank-tbody");
+  tbody.innerHTML = "";
+  ranked.forEach((r, i) => {
+    const barWidth = Math.round((r.area / maxArea) * 100);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="rank-num">${i+1}</td>
+      <td><a class="district-link" onclick="selectDistrict('${r.dist}')">${r.dist}</a></td>
+      <td class="mono-val">${fmtFull(r.area)}</td>
+      <td class="mono-val">${fmtFull(r.prod)}</td>
+      <td><div class="mini-bar" style="width:${barWidth}%"></div></td>`;
+    tbody.appendChild(tr);
+  });
+
+  if (geoLayer) {
+    const values = Object.entries(crop.districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{});
+    const max = Math.max(...Object.values(values));
+    geoLayer.setStyle(feature => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const distName = matchDistrictName(geoName);
+      const val = distName ? (values[distName] || 0) : 0;
+      return { fillColor: getColor(val, max, true), weight: 1, color: "#a08060", fillOpacity: 0.75 };
+    });
+    updateLegend(max);
+  }
+}
+
+// ============================================================
+// DISTRICT VIEW
+// ============================================================
+function buildDistrictDropdown() {
+  const sel = document.getElementById("district-select");
+  DISTRICTS.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(d => {
+    const opt = document.createElement("option");
+    opt.value = d.name;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}
+
+function selectDistrict(distName) {
+  selectedDistrict = distName;
+  switchTab("district");
+  document.getElementById("district-select").value = distName;
+  loadDistrict(distName);
+  const d = DISTRICTS.find(x => x.name === distName);
+  if (d) map.setView([d.lat, d.lng], 9, { animate: true });
+}
+
+function loadDistrict(distName) {
+  if (!distName) { document.getElementById("district-detail").classList.remove("visible"); return; }
+  const crops = getDistrictCrops(distName);
+  const totalArea = crops.reduce((s,c)=>s+c.area, 0);
+  const dominant = crops[0];
+
+  document.getElementById("district-detail").classList.add("visible");
+  document.getElementById("dv-name").textContent = distName;
+  document.getElementById("dv-chips").innerHTML = `
+    <div class="d-chip">Area: ${fmtFull(totalArea)} ha</div>
+    <div class="d-chip">${dominant?.emoji || ""} ${dominant?.cropName || "N/A"}</div>
+    <div class="d-chip">${crops.length} crops</div>`;
+
+  const top5 = crops.slice(0, 5);
+  const maxArea = top5[0]?.area || 1;
+  document.getElementById("dv-barchart").innerHTML = top5.map(c => {
+    const pct = Math.round((c.area / maxArea) * 100);
+    return `<div class="hbar-row">
+      <div class="hbar-label">${c.emoji} ${c.cropName}</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div>
+      <div class="hbar-val">${fmt(c.area)} ha</div>
+    </div>`;
+  }).join("");
+
+  const tbody = document.getElementById("dv-crop-tbody");
+  tbody.innerHTML = "";
+  crops.forEach(c => {
+    const badgeClass = c.rank===1?"r1":c.rank===2?"r2":c.rank===3?"r3":"";
+    const badge = c.rank <= 3
+      ? `<span class="rank-badge ${badgeClass}">#${c.rank}</span>`
+      : `<span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted)">#${c.rank}</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span style="margin-right:4px">${c.emoji}</span><b style="cursor:pointer;color:var(--terra)" onclick="selectCrop('${c.cropName}')">${c.cropName}</b></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--muted)">${c.season}</td>
+      <td class="mono-val">${fmtFull(c.area)}</td>
+      <td class="mono-val">${fmtFull(c.prod)}</td>
+      <td>${badge}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  if (geoLayer) {
+    geoLayer.setStyle(feature => {
+      const geoName = getDistrictNameFromFeature(feature);
+      const dn = matchDistrictName(geoName);
+      const isSelected = dn === distName;
+      const total = dn ? (districtTotals[dn] || 0) : 0;
+      const max = Math.max(...Object.values(districtTotals));
+      return {
+        fillColor: isSelected ? "#D4A853" : getColor(total, max, false),
+        weight: isSelected ? 3 : 1,
+        color: isSelected ? "#5a2d0c" : "#a08060",
+        fillOpacity: isSelected ? 0.9 : 0.65
+      };
+    });
+  }
+}
+
+// ============================================================
+// BOILER DIRECTORY
 // ============================================================
 function filterBoilers(category) {
   activeBoilerFilter = category;
-  document.querySelectorAll('.boiler-filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent === category || (category === 'All' && btn.textContent === 'All'));
+  document.querySelectorAll(".f-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.textContent === category || (category === "All" && btn.textContent === "All"));
   });
   renderBoilerTable();
 }
 
 function renderBoilerTable() {
-  const tbody = document.getElementById('boiler-tbody');
+  const tbody = document.getElementById("boiler-tbody");
   if (!tbody) return;
-  const filtered = activeBoilerFilter === 'All'
-    ? BOILERS
-    : BOILERS.filter(b => b[4] === activeBoilerFilter);
-
-  tbody.innerHTML = '';
+  const filtered = activeBoilerFilter === "All" ? BOILERS : BOILERS.filter(b => b[4] === activeBoilerFilter);
+  tbody.innerHTML = "";
   filtered.forEach(b => {
     const [name, lat, lng, district, category, capacity, operator, tpa, notes] = b;
-    const color = BOILER_COLORS[category] || '#555';
+    const color = BOILER_COLORS[category] || "#555";
     const pellet5 = Math.round(tpa * 0.05);
-    const tr = document.createElement('tr');
+    const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="boiler-name-cell">${name}</td>
+      <td style="font-weight:600;color:var(--ink)">${name}</td>
       <td>${district}</td>
       <td><span class="cat-badge" style="background:${color}">${category}</span></td>
-      <td style="font-family:'Fira Code',monospace;font-size:0.68rem;">${capacity}</td>
-      <td class="boiler-tpa-cell">${(tpa/1000).toFixed(0)}K</td>
-      <td class="boiler-tpa-cell" style="color:#27AE60;">${(pellet5/1000).toFixed(0)}K MT</td>
-      <td class="boiler-notes-cell">${notes}</td>
-    `;
-    tr.onclick = () => {
-      // Switch to map, pan to boiler, show popup
-      if (!boilerLayerVisible) toggleBoilerLayer();
-      map.setView([lat, lng], 10);
-      // find and open the right marker
-      if (boilerLayerGroup) {
-        boilerLayerGroup.eachLayer(layer => {
-          const ll = layer.getLatLng();
-          if (Math.abs(ll.lat - lat) < 0.001 && Math.abs(ll.lng - lng) < 0.001) {
-            layer.openPopup();
-          }
-        });
-      }
-    };
+      <td class="mono-val">${(tpa/1000).toFixed(0)}K</td>
+      <td class="mono-green">${(pellet5/1000).toFixed(0)}K</td>`;
+    tr.onclick = () => focusBoilerOnMap(lat, lng);
     tbody.appendChild(tr);
   });
 }
 
 function buildBoilerSummary() {
-  const totalCoal = BOILERS.reduce((s, b) => s + b[7], 0);
+  const totalCoal = BOILERS.reduce((s,b)=>s+b[7],0);
   const pellet5 = Math.round(totalCoal * 0.05);
-  const el1 = document.getElementById('boiler-total-coal');
-  const el2 = document.getElementById('boiler-pellet-potential');
-  if (el1) el1.textContent = (totalCoal / 1e6).toFixed(1) + 'M MT';
-  if (el2) el2.textContent = (pellet5 / 1e6).toFixed(2) + 'M MT';
+  const el1 = document.getElementById("boiler-total-coal");
+  const el2 = document.getElementById("boiler-pellet-potential");
+  if (el1) el1.textContent = (totalCoal/1e6).toFixed(1)+"M MT";
+  if (el2) el2.textContent = (pellet5/1e6).toFixed(2)+"M MT";
 }
 
 // ============================================================
 // INDUSTRIES TAB
 // ============================================================
 function buildIndustriesTab() {
-  var totalCoal = IND_BOILERS.reduce(function(s,b){return s+b[7];},0);
-  var totalPellet = IND_BOILERS.reduce(function(s,b){return s+b[8];},0);
-  var summary = document.getElementById('ind-summary');
+  const totalCoal = IND_BOILERS.reduce((s,b)=>s+b[7],0);
+  const totalPellet = IND_BOILERS.reduce((s,b)=>s+b[8],0);
+  const summary = document.getElementById("ind-summary");
   if (summary) {
-    summary.innerHTML =
-      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
-        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Industrial Sites</div>' +
-        '<div style="font-size:1.4rem;font-weight:700;color:var(--terra)">' + IND_BOILERS.length + '</div>' +
-      '</div>' +
-      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
-        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total Coal/yr</div>' +
-        '<div style="font-size:1.4rem;font-weight:700;color:var(--terra)">' + (totalCoal/1e6).toFixed(1) + 'M MT</div>' +
-      '</div>' +
-      '<div style="background:var(--cream);border:1px solid var(--parchment);border-radius:8px;padding:10px 16px">' +
-        '<div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Pellet Potential (5%)</div>' +
-        '<div style="font-size:1.4rem;font-weight:700;color:var(--forest)">' + Math.round(totalPellet/1000) + 'K MT/yr</div>' +
-      '</div>';
+    summary.innerHTML = `
+      <div class="ind-stat"><div class="val">${IND_BOILERS.length}</div><div class="lbl">Industrial Sites</div></div>
+      <div class="ind-stat"><div class="val">${(totalCoal/1e6).toFixed(1)}M MT</div><div class="lbl">Coal/yr</div></div>
+      <div class="ind-stat"><div class="val" style="color:var(--moss)">${Math.round(totalPellet/1000)}K MT</div><div class="lbl">Pellet Potential (5%)</div></div>`;
   }
-
-  var cats = [];
-  IND_BOILERS.forEach(function(b){ if(cats.indexOf(b[4])===-1) cats.push(b[4]); });
-  cats.sort();
-  var filterDiv = document.getElementById('ind-filters');
+  const cats = [...new Set(IND_BOILERS.map(b => b[4]))].sort();
+  const filterDiv = document.getElementById("ind-filters");
   if (filterDiv) {
-    filterDiv.innerHTML = '<button onclick="filterInd(\'\')" style="padding:4px 10px;border-radius:12px;border:1px solid var(--parchment);background:var(--terra);color:#fff;cursor:pointer;font-size:.75rem">All</button> ' +
-      cats.map(function(c){
-        return '<button onclick="filterInd(\''+c+'\')" style="padding:4px 10px;border-radius:12px;border:1px solid var(--parchment);background:'+(IND_BOILER_COLORS[c]||'#888')+';color:#fff;cursor:pointer;font-size:.75rem">'+c+'</button>';
-      }).join(' ');
+    filterDiv.innerHTML = `<button class="f-btn active" onclick="filterInd('')" style="background:var(--terra);color:#fff;border-color:var(--terra)">All</button> ` +
+      cats.map(c => `<button class="f-btn" onclick="filterInd('${c}')" style="background:${IND_BOILER_COLORS[c]||'#888'};color:#fff;border-color:${IND_BOILER_COLORS[c]||'#888'}">${c}</button>`).join(" ");
   }
-
-  renderIndTable('');
+  renderIndTable("");
 }
 
-function filterInd(cat) {
-  renderIndTable(cat);
-}
+function filterInd(cat) { renderIndTable(cat); }
 
 function renderIndTable(cat) {
-  var tbody = document.getElementById('ind-tbody');
+  const tbody = document.getElementById("ind-tbody");
   if (!tbody) return;
-  var rows = IND_BOILERS.filter(function(b){ return !cat || b[4]===cat; });
-  rows.sort(function(a,b){ return b[7]-a[7]; });
-  tbody.innerHTML = rows.map(function(b){
-    var col = IND_BOILER_COLORS[b[4]]||'#888';
-    return '<tr style="cursor:pointer" onclick="focusInd('+b[1]+','+b[2]+',\''+b[0].replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">' +
-      '<td class="boiler-name-cell">' + b[0] + '</td>' +
-      '<td>' + b[3] + '</td>' +
-      '<td><span class="cat-badge" style="background:'+col+'">'+b[4]+'</span></td>' +
-      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem">' + b[5] + '</td>' +
-      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem;color:var(--earth)">' + b[7].toLocaleString() + '</td>' +
-      '<td style="text-align:right;font-family:\'Fira Code\',monospace;font-size:.68rem;color:var(--forest);font-weight:600">' + b[8].toLocaleString() + '</td>' +
-    '</tr>';
-  }).join('');
-}
-
-function focusInd(lat,lng,name) {
-  switchTab('industries');
-  if (!indVisible) toggleIndustries();
-  map.setView([lat,lng], 11);
-  if (indLayer) {
-    indLayer.eachLayer(function(lyr){
-      if (lyr.getPopup && lyr.getPopup() && lyr.getPopup().getContent().indexOf(name) > -1) {
-        lyr.openPopup();
-      }
-    });
-  }
+  const rows = IND_BOILERS.filter(b => !cat || b[4] === cat);
+  rows.sort((a,b) => b[7]-a[7]);
+  tbody.innerHTML = rows.map(b => {
+    const col = IND_BOILER_COLORS[b[4]] || "#888";
+    return `<tr style="cursor:pointer" onclick="focusIndOnMap(${b[1]},${b[2]})">
+      <td style="font-weight:600;color:var(--ink)">${b[0]}</td>
+      <td>${b[3]}</td>
+      <td><span class="cat-badge" style="background:${col}">${b[4]}</span></td>
+      <td class="mono-val" style="text-align:right">${b[5]}</td>
+      <td class="mono-val" style="text-align:right">${b[7].toLocaleString()}</td>
+      <td class="mono-green" style="text-align:right">${b[8].toLocaleString()}</td>
+    </tr>`;
+  }).join("");
 }
 
 // ============================================================
@@ -1818,20 +2001,29 @@ function init() {
   buildCropGrid();
   buildDistrictDropdown();
   initMap();
-
-  // Boiler directory
   buildBoilerSummary();
   renderBoilerTable();
-
-  // Industries tab
   buildIndustriesTab();
 
-  // Compute total cultivated area for chips
-  const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v,0);
-  document.getElementById('chip-area').textContent = fmt(totalAll) + ' ha';
+  // Compute total area
+  const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v, 0);
+  document.getElementById("chip-area").textContent = fmt(totalAll);
+
+  // Wire map click after init
+  setTimeout(() => {
+    if (map) {
+      map.on("click", function(e) {
+        const { lat, lng } = e.latlng;
+        // Only trigger if not clicking on a popup or marker
+        if (!e.originalEvent.target.closest(".leaflet-marker-icon, .leaflet-popup")) {
+          setLocationPin(lat, lng, `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`, "Custom map location — click any site above to fly there");
+        }
+      });
+    }
+  }, 500);
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>
