@@ -963,7 +963,31 @@ const IND_BOILERS = [
 ["Emami Paper Nashik",20.00,73.80,"Nashik","Paper",30,"Coal",21000,1050,"Nashik","Paper + paperboard. Coal boiler."],
 ["Greenply Pune",18.58,73.77,"Pune","Plywood",15,"Coal+Husk",10000,500,"Pimpri, Pune","MDF + plywood. Drying kilns."],
 ["Kalumetals Ceramics Nashik",19.97,73.78,"Nashik","Ceramics",15,"Coal",10500,525,"Sinnar, Nashik","Refractory ceramics. Kiln firing."],
-["Vidarbha Ceramics Butibori",21.08,79.05,"Nagpur","Ceramics",10,"Coal",7000,350,"Butibori, Nagpur","Industrial ceramics. Coal kiln."]
+["Vidarbha Ceramics Butibori",21.08,79.05,"Nagpur","Ceramics",10,"Coal",7000,350,"Butibori, Nagpur","Industrial ceramics. Coal kiln."],
+// --- FMCG / Beverages / Auto (added) ---
+["Mondelez India (Cadbury) Talegaon",18.73,73.67,"Pune","Food Processing",15,"Coal+NG",10500,525,"Talegaon, Pune","Cadbury chocolates. Cocoa roasting + tempering. Coal/NG boiler."],
+["Ferrero India Baramati",18.15,74.58,"Pune","Food Processing",10,"Coal+NG",7000,350,"Baramati, Pune","Kinder/Nutella. Confectionery steam. Coal/NG."],
+["Mars Wrigley Pune",18.52,73.86,"Pune","Food Processing",8,"Coal+NG",5600,280,"Chakan, Pune","Mars chocolates + Wrigley gum. Steam process. Coal/NG."],
+["Perfetti Van Melle Pune",18.60,73.74,"Pune","Food Processing",8,"Coal+NG",5600,280,"Chakan, Pune","Alpenliebe, Mentos. Candy + gum. Steam cookers."],
+["Haldiram's Nagpur",21.15,79.05,"Nagpur","Food Processing",12,"Coal+NG",8400,420,"Nagpur MIDC","Namkeen + sweets. Frying + cooking steam. Coal/NG boiler."],
+["General Mills Nashik",19.98,73.79,"Nashik","Food Processing",12,"Coal+NG",8400,420,"Nashik MIDC","Pillsbury/Haagen-Dazs. Baking + process steam. Coal/NG."],
+["Kellogg's India Taloja",19.05,73.08,"Raigad","Food Processing",10,"Coal+NG",7000,350,"Taloja MIDC, Raigad","Cereals + snacks. Extrusion + drying. Coal/NG boiler."],
+["HUL Nashik",19.98,73.79,"Nashik","FMCG",12,"Coal+NG",8400,420,"Nashik MIDC","HUL soaps + detergents. Process steam for saponification."],
+["HUL Taloja",19.04,73.07,"Raigad","FMCG",15,"Coal+NG",10500,525,"Taloja MIDC, Raigad","HUL personal care. Steam for emulsification. Coal/NG."],
+["P&G India Bhiwandi",19.30,73.06,"Thane","FMCG",12,"Coal+NG",8400,420,"Bhiwandi, Thane","Ariel/Pampers. Detergent spray-dry towers. Coal/NG."],
+["Reckitt Benckiser Thane",19.20,72.98,"Thane","FMCG",10,"Coal+NG",7000,350,"Thane MIDC","Dettol/Harpic. Chemical manufacturing. Steam process."],
+["Pidilite Industries Mahad",18.09,73.42,"Raigad","Chemical",20,"Coal",14000,700,"Mahad MIDC, Raigad","Fevicol/M-Seal. Polymer + resin. Steam reactor. Coal."],
+["Apcotex Industries Taloja",19.04,73.07,"Raigad","Chemical",12,"Coal",8400,420,"Taloja MIDC, Raigad","Synthetic latex + rubber. Reactor steam. Coal boiler."],
+["Coca-Cola India Wada",19.65,73.14,"Palghar","Brewery",8,"Coal+NG",5600,280,"Wada, Palghar","Beverages. CIP steam + bottle washing. Coal/NG."],
+["Coca-Cola India Pune",18.53,73.85,"Pune","Brewery",8,"Coal+NG",5600,280,"Chakan, Pune","Beverages. CIP + sterilisation steam. Coal/NG."],
+["United Breweries Aurangabad",19.88,75.32,"Aurangabad","Brewery",20,"Coal+NG",14000,700,"Aurangabad","Kingfisher beer. Wort boiling + CIP. Coal/NG. Large scale."],
+["Carlsberg India Aurangabad",19.90,75.35,"Aurangabad","Brewery",18,"Coal+NG",12600,630,"Aurangabad","Carlsberg/Tuborg. Wort boiling. Coal/NG boiler."],
+["AB InBev (SABMiller) Aurangabad",19.87,75.30,"Aurangabad","Brewery",20,"Coal+NG",14000,700,"Aurangabad","Budweiser/Corona. Brewing steam. Coal/NG. High thermal load."],
+["Bisleri International Mumbai",19.07,72.89,"Mumbai","Food Processing",6,"Coal+NG",4200,210,"Andheri, Mumbai","Mineral water. Bottle blow-moulding + filling. Small steam."],
+["Tata Motors Pune (Paint Shop)",18.54,73.86,"Pune","Auto",30,"Coal+NG",21000,1050,"Pimpri-Chinchwad, Pune","Paint curing ovens. Phosphating + ED coat steam. Coal/NG."],
+["Bajaj Auto Chakan",18.76,73.88,"Pune","Auto",20,"Coal+NG",14000,700,"Chakan, Pune","Motorcycle/3-wheeler. Paint oven + process heat. Coal/NG."],
+["Bajaj Auto Aurangabad",19.90,75.31,"Aurangabad","Auto",15,"Coal+NG",10500,525,"Waluj, Aurangabad","Bajaj plant 2. Paint + process heat. Coal/NG boiler."],
+["Volkswagen India Chakan",18.76,73.86,"Pune","Auto",25,"Coal+NG",17500,875,"Chakan, Pune","VW/Skoda/Audi India. Paint shop + press. Coal/NG boiler."]
 ];
 
 const IND_BOILER_COLORS = {
@@ -982,7 +1006,10 @@ const IND_BOILER_COLORS = {
   "Rubber":       "#2C3E50",
   "Oil Mill":     "#E67E22",
   "Paper":        "#95A5A6",
-  "Plywood":      "#6D4C41"
+  "Plywood":      "#6D4C41",
+  "FMCG":         "#3498DB",
+  "Brewery":      "#F4D03F",
+  "Auto":         "#E74C3C"
 };
 
 // cropData[cropName] = { emoji, season, districts: {districtName: {area, prod}} }
