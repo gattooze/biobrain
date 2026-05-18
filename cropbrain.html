@@ -524,6 +524,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
   body{overflow:auto;}
 }
 
+.sat-month-btn {
+  padding: 3px 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--mid);
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+.sat-month-btn.active {
+  background: var(--forest);
+  color: white;
+  border-color: var(--forest);
+}
 /* Leaflet popup styling */
 .leaflet-popup-content-wrapper{
   border-radius:10px!important;
@@ -566,11 +583,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
       <div id="layer-btns">
         <button class="layer-btn" id="btn-power" onclick="togglePowerBoilers()">⚡ Power Boilers</button>
         <button class="layer-btn" id="btn-ind" onclick="toggleIndustries()">🏗️ Industrial Sites</button>
+        <button class="layer-btn" id="btn-sat" onclick="toggleSatellite()">🛰️ Satellite NDVI</button>
+        <div id="sat-controls" style="display:none;background:rgba(255,255,255,0.93);backdrop-filter:blur(6px);border-radius:10px;padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.14);">
+          <div style="font-size:0.65rem;font-weight:700;color:var(--forest);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em;">MODIS NDVI · NASA GIBS</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+            <button class="sat-month-btn active" data-date="2024-11-09" onclick="setSatDate(this,'2024-11-09')">Nov 24</button>
+            <button class="sat-month-btn" data-date="2024-09-13" onclick="setSatDate(this,'2024-09-13')">Sep 24</button>
+            <button class="sat-month-btn" data-date="2024-07-04" onclick="setSatDate(this,'2024-07-04')">Jul 24</button>
+            <button class="sat-month-btn" data-date="2024-01-09" onclick="setSatDate(this,'2024-01-09')">Jan 24</button>
+            <button class="sat-month-btn" data-date="2023-11-09" onclick="setSatDate(this,'2023-11-09')">Nov 23</button>
+          </div>
+          <div id="ndvi-legend-bar" style="display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--mid);">
+            <span>Low</span>
+            <div style="flex:1;height:8px;border-radius:4px;background:linear-gradient(to right,#8B4513,#D4A853,#ADDD8E,#31A354,#006837);"></div>
+            <span>High NDVI</span>
+          </div>
+          <div style="font-size:0.6rem;color:var(--muted);margin-top:4px;">Kharif peak: Sep–Nov · Rabi: Jan–Mar</div>
+        </div>
       </div>
 
       <!-- Legend (bottom right) -->
       <div id="map-legend">
-        <div class="legend-title" id="legend-title">TOTAL AREA (Ha)</div>
+        <div class="legend-title" id="legend-title">TOTAL PROD (MT)</div>
         <div id="legend-rows"></div>
         <div id="boiler-legend" style="display:none;margin-top:7px;border-top:1px solid var(--border);padding-top:6px;">
           <div class="legend-title">POWER BOILERS</div>
@@ -1148,25 +1182,26 @@ const CROPS = {
 
 
 // ============================================================
-// RESIDUE FACTORS (MT residue per hectare cultivated)
+// RESIDUE FACTORS (MT residue per MT production — straw ratios)
+// Sources: MNRE biomass atlas, ICAR crop residue data
 // ============================================================
 const RESIDUE_FACTORS = {
-  "Cotton":     3.5,
-  "Soybean":    2.0,
-  "Rice":       4.5,
-  "Wheat":      3.0,
-  "Sugarcane":  6.0,
-  "Jowar":      3.0,
-  "Maize":      4.0,
-  "Tur":        2.5,
-  "Bajra":      2.5,
-  "Groundnut":  2.0,
-  "Onion":      0.8,
-  "Grapes":     0.5,
-  "Orange":     0.4,
-  "Banana":     2.0,
-  "Pomegranate":0.5,
-  "Turmeric":   1.5
+  "Cotton":     2.8,   // cotton stalk per MT lint
+  "Soybean":    1.5,   // soy straw per MT beans
+  "Rice":       1.5,   // rice straw per MT paddy
+  "Wheat":      1.3,   // wheat straw per MT grain
+  "Sugarcane":  0.28,  // bagasse per MT cane (post-pressing)
+  "Jowar":      1.5,   // sorghum stover per MT grain
+  "Maize":      1.5,   // maize stover per MT grain
+  "Tur":        2.0,   // arhar stover per MT grain
+  "Bajra":      1.4,   // pearl millet stover per MT grain
+  "Groundnut":  1.5,   // shell + straw per MT pods
+  "Onion":      0.3,
+  "Grapes":     0.2,
+  "Orange":     0.3,
+  "Banana":     2.5,   // pseudo-stem per MT fruit
+  "Pomegranate":0.3,
+  "Turmeric":   1.0
 };
 
 // ============================================================
@@ -1190,7 +1225,7 @@ function buildDistrictTotals() {
   DISTRICTS.forEach(d => { totals[d.name] = 0; });
   Object.values(CROPS).forEach(crop => {
     Object.entries(crop.districts).forEach(([dist, val]) => {
-      if (totals[dist] !== undefined) totals[dist] += val.area;
+      if (totals[dist] !== undefined) totals[dist] += val.prod;
     });
   });
   return totals;
@@ -1202,7 +1237,7 @@ function getCropTotals(cropName) {
   let totalArea = 0, totalProd = 0;
   const ranked = Object.entries(crop.districts)
     .map(([dist, val]) => ({ dist, area: val.area, prod: val.prod }))
-    .sort((a,b) => b.area - a.area);
+    .sort((a,b) => b.prod - a.prod);
   ranked.forEach(r => { totalArea += r.area; totalProd += r.prod; });
   return { totalArea, totalProd, ranked };
 }
@@ -1214,12 +1249,12 @@ function getDistrictCrops(distName) {
     if (crop.districts[distName]) {
       const { area, prod } = crop.districts[distName];
       // compute state rank
-      const ranked = Object.entries(crop.districts).sort((a,b)=>b[1].area-a[1].area);
+      const ranked = Object.entries(crop.districts).sort((a,b)=>b[1].prod-a[1].prod);
       const rank = ranked.findIndex(r=>r[0]===distName) + 1;
       result.push({ cropName, emoji: crop.emoji, season: crop.season, area, prod, rank, totalDistricts: ranked.length });
     }
   });
-  result.sort((a,b) => b.area - a.area);
+  result.sort((a,b) => b.prod - a.prod);
   return result;
 }
 
@@ -1235,6 +1270,57 @@ function haversine(lat1, lng1, lat2, lng2) {
   const a = Math.sin(dLat/2)**2 +
     Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+
+// ============================================================
+// ROAD DISTANCE — OSRM Table API (batch, single request)
+// ============================================================
+const roadCache = {};  // key: "lat1,lng1→lat2,lng2"
+
+async function batchRoadDistances(originLat, originLng, targets) {
+  // targets = [{lat, lng, id}]
+  // OSRM Table API: first coord is source (index 0), rest are destinations
+  const uncached = targets.filter(t => {
+    const key = `${originLat.toFixed(4)},${originLng.toFixed(4)}→${t.lat.toFixed(4)},${t.lng.toFixed(4)}`;
+    return !roadCache[key];
+  });
+
+  if (uncached.length > 0) {
+    // Build coordinate string: origin first, then destinations
+    const coords = [
+      `${originLng.toFixed(5)},${originLat.toFixed(5)}`,
+      ...uncached.map(t => `${t.lng.toFixed(5)},${t.lat.toFixed(5)}`)
+    ].join(';');
+    const url = `https://router.project-osrm.org/table/v1/driving/${coords}?sources=0&destinations=all&annotations=distance,duration`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code === 'Ok') {
+        uncached.forEach((t, i) => {
+          const key = `${originLat.toFixed(4)},${originLng.toFixed(4)}→${t.lat.toFixed(4)},${t.lng.toFixed(4)}`;
+          const distM = data.distances[0][i + 1];
+          const durS  = data.durations[0][i + 1];
+          roadCache[key] = {
+            road_km: distM ? (distM / 1000).toFixed(0) : null,
+            drive_hr: durS  ? (durS  / 3600).toFixed(1) : null
+          };
+        });
+      }
+    } catch(e) { /* OSRM unavailable — fall back to haversine */ }
+  }
+
+  return targets.map(t => {
+    const key = `${originLat.toFixed(4)},${originLng.toFixed(4)}→${t.lat.toFixed(4)},${t.lng.toFixed(4)}`;
+    return { ...t, road: roadCache[key] || null };
+  });
+}
+
+function fmtDist(roadObj, haversineFallback) {
+  if (roadObj && roadObj.road_km) {
+    return `${roadObj.road_km} km road · ${roadObj.drive_hr}h`;
+  }
+  return `~${haversineFallback.toFixed(0)} km (crow)`;
 }
 
 // ============================================================
@@ -1320,7 +1406,7 @@ function loadGeoJSON() {
 function renderGeoLayer(data) {
   if (geoLayer) map.removeLayer(geoLayer);
   const values = selectedCrop
-    ? Object.entries(CROPS[selectedCrop].districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{})
+    ? Object.entries(CROPS[selectedCrop].districts).reduce((acc,[k,v])=>{acc[k]=v.prod;return acc;},{})
     : districtTotals;
   const max = Math.max(...Object.values(values));
 
@@ -1379,7 +1465,7 @@ function renderFallbackMarkers() {
 
 function updateLegend(max) {
   const isCrop = !!selectedCrop;
-  document.getElementById("legend-title").textContent = isCrop ? `${selectedCrop.toUpperCase()} AREA (Ha)` : "TOTAL AREA (Ha)";
+  document.getElementById("legend-title").textContent = isCrop ? `${selectedCrop.toUpperCase()} PROD (MT)` : "TOTAL PROD (MT)";
   const colors = isCrop
     ? ["#c7e9c0","#74c476","#41ab5d","#238b45","#00441b"]
     : ["#f5e6d3","#e8c9a0","#d4a853","#a0714a","#5a2d0c"];
@@ -1633,7 +1719,7 @@ document.querySelectorAll(".radius-pill").forEach(btn => {
 // ============================================================
 // SITE ASSESSMENT ENGINE
 // ============================================================
-function updateSiteAssessment(lat, lng, name, sub) {
+async function updateSiteAssessment(lat, lng, name, sub) {
   document.getElementById("loc-name").textContent = name;
   document.getElementById("loc-sub").textContent = sub || `${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E`;
   document.getElementById("a-radius-label").textContent = `within ${currentRadius} km`;
@@ -1653,7 +1739,7 @@ function updateSiteAssessment(lat, lng, name, sub) {
       const data = crop.districts[d.name];
       if (data) {
         const factor = RESIDUE_FACTORS[cropName] || 1.5;
-        const r = Math.round(data.area * factor);
+        const r = Math.round(data.prod * factor);
         residue += r;
         cropBreakdown.push({ cropName, emoji: crop.emoji, residue: r });
       }
@@ -1669,11 +1755,26 @@ function updateSiteAssessment(lat, lng, name, sub) {
     .filter(x => x.dist <= currentRadius)
     .sort((a, b) => a.dist - b.dist);
 
+  // Fetch road distances for boilers (OSRM batch)
+  const boilerTargets = nearBoilers.slice(0, 20).map(x => ({ lat: x.b[1], lng: x.b[2], idx: BOILERS.indexOf(x.b) }));
+  const boilerRoads = boilerTargets.length > 0
+    ? await batchRoadDistances(lat, lng, boilerTargets)
+    : [];
+  const boilerRoadMap = {};
+  boilerRoads.forEach(r => { boilerRoadMap[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
+
   // Find industrial boilers within radius
   const nearInd = IND_BOILERS
     .map(b => ({ b, dist: haversine(lat, lng, b[1], b[2]) }))
     .filter(x => x.dist <= currentRadius)
     .sort((a, b) => a.dist - b.dist);
+
+  const indTargets = nearInd.slice(0, 30).map(x => ({ lat: x.b[1], lng: x.b[2] }));
+  const indRoads = indTargets.length > 0
+    ? await batchRoadDistances(lat, lng, indTargets)
+    : [];
+  const indRoadMap = {};
+  indRoads.forEach(r => { indRoadMap[`${r.lat.toFixed(4)},${r.lng.toFixed(4)}`] = r.road; });
 
   const totalPowerPellet = nearBoilers.reduce((s, x) => s + Math.round(x.b[7] * 0.05), 0);
   const totalIndPellet = nearInd.reduce((s, x) => s + x.b[8], 0);
@@ -1714,7 +1815,7 @@ function updateSiteAssessment(lat, lng, name, sub) {
       return `<div class="assess-row" onclick="focusBoilerOnMap(${b[1]},${b[2]})">
         <span class="dot" style="background:${color}"></span>
         <span class="assess-row-name">${b[0]}</span>
-        <span class="assess-row-dist">${dist.toFixed(0)} km</span>
+        <span class="assess-row-dist">${fmtDist(boilerRoadMap[b[1].toFixed(4)+','+b[2].toFixed(4)], dist)}</span>
         <span class="assess-row-val">${pellet} MT</span>
       </div>`;
     }).join("");
@@ -1730,7 +1831,7 @@ function updateSiteAssessment(lat, lng, name, sub) {
       return `<div class="assess-row" onclick="focusIndOnMap(${b[1]},${b[2]})">
         <span class="dot" style="background:${color}"></span>
         <span class="assess-row-name">${b[0]}</span>
-        <span class="assess-row-dist">${dist.toFixed(0)} km</span>
+        <span class="assess-row-dist">${fmtDist(indRoadMap[b[1].toFixed(4)+','+b[2].toFixed(4)], dist)}</span>
         <span class="assess-row-val">${fmt(b[8])} MT</span>
       </div>`;
     }).join("");
@@ -1794,7 +1895,7 @@ function selectCrop(cropName) {
   selectedCrop = cropName;
   const crop = CROPS[cropName];
   const { totalArea, totalProd, ranked } = getCropTotals(cropName);
-  const maxArea = ranked[0]?.area || 1;
+  const maxProd = ranked[0]?.prod || 1;
 
   document.getElementById("crop-detail").classList.add("visible");
   document.getElementById("detail-emoji").textContent = crop.emoji;
@@ -1807,7 +1908,7 @@ function selectCrop(cropName) {
   const tbody = document.getElementById("rank-tbody");
   tbody.innerHTML = "";
   ranked.forEach((r, i) => {
-    const barWidth = Math.round((r.area / maxArea) * 100);
+    const barWidth = Math.round((r.prod / maxProd) * 100);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="rank-num">${i+1}</td>
@@ -1819,7 +1920,7 @@ function selectCrop(cropName) {
   });
 
   if (geoLayer) {
-    const values = Object.entries(crop.districts).reduce((acc,[k,v])=>{acc[k]=v.area;return acc;},{});
+    const values = Object.entries(crop.districts).reduce((acc,[k,v])=>{acc[k]=v.prod;return acc;},{});
     const max = Math.max(...Object.values(values));
     geoLayer.setStyle(feature => {
       const geoName = getDistrictNameFromFeature(feature);
@@ -1856,24 +1957,24 @@ function selectDistrict(distName) {
 function loadDistrict(distName) {
   if (!distName) { document.getElementById("district-detail").classList.remove("visible"); return; }
   const crops = getDistrictCrops(distName);
-  const totalArea = crops.reduce((s,c)=>s+c.area, 0);
+  const totalProd = crops.reduce((s,c)=>s+c.prod, 0);
   const dominant = crops[0];
 
   document.getElementById("district-detail").classList.add("visible");
   document.getElementById("dv-name").textContent = distName;
   document.getElementById("dv-chips").innerHTML = `
-    <div class="d-chip">Area: ${fmtFull(totalArea)} ha</div>
+    <div class="d-chip">Prod: ${fmtFull(totalProd)} MT</div>
     <div class="d-chip">${dominant?.emoji || ""} ${dominant?.cropName || "N/A"}</div>
     <div class="d-chip">${crops.length} crops</div>`;
 
   const top5 = crops.slice(0, 5);
-  const maxArea = top5[0]?.area || 1;
+  const maxProd2 = top5[0]?.prod || 1;
   document.getElementById("dv-barchart").innerHTML = top5.map(c => {
-    const pct = Math.round((c.area / maxArea) * 100);
+    const pct = Math.round((c.prod / maxProd2) * 100);
     return `<div class="hbar-row">
       <div class="hbar-label">${c.emoji} ${c.cropName}</div>
       <div class="hbar-track"><div class="hbar-fill" style="width:${pct}%"></div></div>
-      <div class="hbar-val">${fmt(c.area)} ha</div>
+      <div class="hbar-val">${fmt(c.prod)} MT</div>
     </div>`;
   }).join("");
 
@@ -1992,6 +2093,86 @@ function renderIndTable(cat) {
       <td class="mono-green" style="text-align:right">${b[8].toLocaleString()}</td>
     </tr>`;
   }).join("");
+}
+
+
+// ============================================================
+// SATELLITE LAYER — NASA GIBS (MODIS NDVI, no auth required)
+// ============================================================
+let satLayer = null, satVisible = false, currentSatDate = '2024-11-09';
+
+// CROP CALENDAR: month → expected growth stage per crop
+// Kharif sown Jun-Jul, harvested Oct-Nov
+// Rabi sown Nov-Dec, harvested Mar-Apr
+const CROP_CALENDAR = {
+  "Cotton":     { peak: [9,10,11], sow: [6,7], harvest: [11,12,1] },
+  "Soybean":    { peak: [8,9,10],  sow: [6,7], harvest: [10,11]   },
+  "Rice":       { peak: [8,9,10],  sow: [6,7], harvest: [10,11]   },
+  "Jowar":      { peak: [9,10],    sow: [6,7], harvest: [11]       },
+  "Maize":      { peak: [8,9],     sow: [6,7], harvest: [10]       },
+  "Sugarcane":  { peak: [1,2,3,4,5,6,7,8,9,10,11,12], sow: [2,3], harvest: [11,12,1,2] },
+  "Wheat":      { peak: [1,2,3],   sow: [11,12], harvest: [3,4]   },
+  "Tur":        { peak: [10,11],   sow: [6,7],  harvest: [11,12]  },
+  "Onion":      { peak: [12,1,2],  sow: [10,11], harvest: [2,3]   },
+  "Bajra":      { peak: [8,9],     sow: [6,7],  harvest: [9,10]   },
+  "Groundnut":  { peak: [8,9,10],  sow: [6,7],  harvest: [10,11]  }
+};
+
+function toggleSatellite() {
+  const btn = document.getElementById('btn-sat');
+  const ctrl = document.getElementById('sat-controls');
+  if (!satVisible) {
+    if (!satLayer) satLayer = buildSatLayer(currentSatDate);
+    satLayer.addTo(map);
+    satVisible = true;
+    btn.className = 'layer-btn active-green';
+    btn.textContent = '🛰️ Hide NDVI';
+    ctrl.style.display = 'block';
+  } else {
+    if (satLayer) map.removeLayer(satLayer);
+    satVisible = false;
+    btn.className = 'layer-btn';
+    btn.textContent = '🛰️ Satellite NDVI';
+    ctrl.style.display = 'none';
+  }
+}
+
+function buildSatLayer(date) {
+  return L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
+    layers: 'MODIS_Terra_NDVI_8Day',
+    format: 'image/png',
+    transparent: true,
+    version: '1.1.1',
+    time: date,
+    opacity: 0.75,
+    attribution: 'NASA GIBS · MODIS Terra NDVI'
+  });
+}
+
+function setSatDate(btn, date) {
+  document.querySelectorAll('.sat-month-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSatDate = date;
+  if (satLayer) {
+    map.removeLayer(satLayer);
+    satLayer = buildSatLayer(date);
+    satLayer.addTo(map);
+  }
+  // Show which crops are at peak this month
+  const m = parseInt(date.split('-')[1]);
+  const peakCrops = Object.entries(CROP_CALENDAR)
+    .filter(([, cal]) => cal.peak.includes(m))
+    .map(([name]) => name);
+  const ctrl = document.getElementById('sat-controls');
+  const existing = ctrl.querySelector('.peak-info');
+  if (existing) existing.remove();
+  if (peakCrops.length) {
+    const div = document.createElement('div');
+    div.className = 'peak-info';
+    div.style.cssText = 'font-size:0.62rem;color:var(--forest);margin-top:5px;font-weight:600;';
+    div.textContent = '🌿 Peak growth: ' + peakCrops.join(', ');
+    ctrl.appendChild(div);
+  }
 }
 
 // ============================================================
