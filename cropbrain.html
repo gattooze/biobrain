@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root {
   --forest:   #1A3A1F;
@@ -555,6 +556,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
 /* Animate panel sections */
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .fade-in{animation:fadeIn 0.25s ease forwards;}
+/* GEE Connect */
+.gee-box{background:rgba(26,58,31,0.06);border:1px solid rgba(26,58,31,0.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+.gee-input{width:100%;box-sizing:border-box;padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:0.69rem;font-family:var(--font-mono);color:var(--ink);outline:none;margin-bottom:5px;background:#fff;}
+.gee-input:focus{border-color:var(--forest);}
+.gee-btn-primary{font-size:0.72rem;padding:5px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;background:var(--forest);color:#fff;}
+.gee-btn-sm{font-size:0.65rem;padding:3px 9px;border:1px solid var(--border);border-radius:5px;cursor:pointer;background:#fff;color:var(--mid);}
+.gee-badge{display:flex;align-items:center;gap:8px;font-size:0.72rem;color:var(--forest);font-weight:600;}
+/* Crop sub-tabs */
+.sub-tab-nav{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:10px;}
+.sub-tab-btn{flex:1;padding:7px 0;font-size:0.72rem;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--mid);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;}
+.sub-tab-btn.active{color:var(--forest);border-bottom-color:var(--forest);}
+.sub-tab-panel{display:none;}
+.sub-tab-panel.active{display:block;}
+/* Satellite table */
+.ndvi-chip{display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.68rem;font-weight:700;color:#fff;font-family:var(--font-mono);}
+.sat-note{font-size:0.57rem;color:var(--muted);margin-top:6px;border-top:1px solid var(--border);padding-top:5px;line-height:1.6;}
 </style>
 </head>
 <body>
@@ -714,30 +731,76 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
 
       <!-- CROP EXPLORER -->
       <div class="tab-panel active" id="tab-crop">
-        <div class="sec-label" style="margin-bottom:8px;">Select a crop to explore district data</div>
-        <div class="crop-grid" id="crop-grid"></div>
-        <div id="crop-detail">
-          <div class="detail-header">
-            <div class="detail-emoji" id="detail-emoji"></div>
-            <div>
-              <div class="detail-crop-name" id="detail-name"></div>
-              <div class="detail-meta" id="detail-meta"></div>
+
+        <!-- Sub-tab nav -->
+        <div class="sub-tab-nav">
+          <button class="sub-tab-btn active" id="stab-btn-apy" onclick="switchCropSubTab('apy')">📊 APY 2021-22</button>
+          <button class="sub-tab-btn" id="stab-btn-sat" onclick="switchCropSubTab('satellite')">🛰️ Satellite Live</button>
+        </div>
+
+        <!-- ── APY sub-panel ── -->
+        <div class="sub-tab-panel active" id="stab-apy">
+          <div class="sec-label" style="margin-bottom:8px;">Select a crop to explore district data</div>
+          <div class="crop-grid" id="crop-grid"></div>
+          <div id="crop-detail">
+            <div class="detail-header">
+              <div class="detail-emoji" id="detail-emoji"></div>
+              <div>
+                <div class="detail-crop-name" id="detail-name"></div>
+                <div class="detail-meta" id="detail-meta"></div>
+              </div>
+            </div>
+            <div class="detail-stats">
+              <div class="stat-box"><span class="stat-val" id="stat-area"></span><span class="stat-lbl">Total Area (Ha)</span></div>
+              <div class="stat-box"><span class="stat-val" id="stat-prod"></span><span class="stat-lbl">Production (MT)</span></div>
+              <div class="stat-box"><span class="stat-val" id="stat-districts"></span><span class="stat-lbl">Districts</span></div>
+            </div>
+            <div class="sec-label">Districts ranked by production</div>
+            <div class="tbl-wrap">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>District</th><th>Area (Ha)</th><th>Prod (MT)</th><th style="min-width:80px">Share</th></tr></thead>
+                <tbody id="rank-tbody"></tbody>
+              </table>
             </div>
           </div>
-          <div class="detail-stats">
-            <div class="stat-box"><span class="stat-val" id="stat-area"></span><span class="stat-lbl">Total Area (Ha)</span></div>
-            <div class="stat-box"><span class="stat-val" id="stat-prod"></span><span class="stat-lbl">Production (MT)</span></div>
-            <div class="stat-box"><span class="stat-val" id="stat-districts"></span><span class="stat-lbl">Districts</span></div>
+        </div><!-- end stab-apy -->
+
+        <!-- ── Satellite sub-panel ── -->
+        <div class="sub-tab-panel" id="stab-sat">
+          <!-- GEE connect section -->
+          <div class="gee-box">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--forest);margin-bottom:8px;">🛰️ Google Earth Engine</div>
+            <div id="gee-not-connected">
+              <input id="gee-client-id" class="gee-input" placeholder="OAuth 2.0 Client ID (Google Cloud Console)" />
+              <input id="gee-project-id" class="gee-input" placeholder="GEE Project ID  (e.g. ee-yourname)" />
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <button class="gee-btn-primary" onclick="connectGEE()">Connect GEE</button>
+                <span id="gee-connect-status" style="font-size:0.62rem;color:var(--muted);"></span>
+              </div>
+              <details>
+                <summary style="font-size:0.6rem;color:var(--mid);cursor:pointer;margin-top:2px;">Setup — 5 min one-time</summary>
+                <div style="font-size:0.58rem;color:var(--muted);line-height:1.65;margin-top:5px;">
+                  1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--forest)">Google Cloud Console</a> → Create OAuth 2.0 Client ID (Web App)<br>
+                  2. Authorized JS origins: <code>https://gattooze.github.io</code><br>
+                  3. Enable <b>Earth Engine API</b> on that project<br>
+                  4. Paste Client ID + project name above → Connect
+                </div>
+              </details>
+            </div>
+            <div id="gee-connected" style="display:none;">
+              <div class="gee-badge">✅ Connected · <span id="gee-proj-label" style="font-family:var(--font-mono);font-size:0.65rem"></span>
+                <button class="gee-btn-sm" onclick="disconnectGEE()" style="margin-left:auto">Disconnect</button>
+              </div>
+            </div>
           </div>
-          <div class="sec-label">Districts ranked by area</div>
-          <div class="tbl-wrap">
-            <table class="data-table">
-              <thead><tr><th>#</th><th>District</th><th>Area (Ha)</th><th>Prod (MT)</th><th style="min-width:80px">Share</th></tr></thead>
-              <tbody id="rank-tbody"></tbody>
-            </table>
+
+          <!-- Live satellite output -->
+          <div id="satellite-crop-content">
+            <div class="assess-empty">📍 Search or pin a location — satellite NDVI will load for all districts within your radius</div>
           </div>
-        </div>
-      </div>
+        </div><!-- end stab-sat -->
+
+      </div><!-- end tab-crop -->
 
       <!-- DISTRICT VIEW -->
       <div class="tab-panel" id="tab-district">
@@ -1918,6 +1981,11 @@ async function updateSiteAssessment(lat, lng, name, sub) {
   // Refresh directory tabs so they sort by road distance from pin
   renderBoilerTable();
   renderIndTable(document.querySelector("#ind-filters .f-btn.active")?.dataset?.cat || "");
+
+  // Auto-run satellite assessment if GEE connected and satellite tab is active
+  if (geeToken && document.getElementById('stab-sat')?.classList.contains('active')) {
+    runSatelliteCropAssessment(lat, lng);
+  }
 }
 
 function focusBoilerOnMap(lat, lng) {
@@ -2559,6 +2627,7 @@ function init() {
   buildBoilerSummary();
   renderBoilerTable();
   buildIndustriesTab();
+  initGEEState();
 
   // Compute total area
   const totalAll = Object.values(districtTotals).reduce((s,v)=>s+v, 0);
@@ -2579,6 +2648,316 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+// ============================================================
+// GEE — STATE + OAUTH (Google Identity Services)
+// ============================================================
+let geeToken   = sessionStorage.getItem('gee_token')      || null;
+let geeProject = sessionStorage.getItem('gee_project')    || '';
+let geeTokenClient = null;
+let satCropToken   = 0; // stale-render guard for satellite queries
+
+function initGEEState() {
+  if (geeToken && geeProject) {
+    _showGEEConnected(geeProject);
+    const savedClientId = sessionStorage.getItem('gee_client_id');
+    if (savedClientId) document.getElementById('gee-client-id').value = savedClientId;
+    document.getElementById('gee-project-id').value = geeProject;
+  }
+}
+
+function connectGEE() {
+  const clientId = document.getElementById('gee-client-id').value.trim();
+  const project  = document.getElementById('gee-project-id').value.trim();
+  const status   = document.getElementById('gee-connect-status');
+  if (!clientId || !project) {
+    status.textContent = '⚠️ Enter Client ID and Project ID';
+    status.style.color = '#c0392b';
+    return;
+  }
+  sessionStorage.setItem('gee_project', project);
+  sessionStorage.setItem('gee_client_id', clientId);
+  geeProject = project;
+  status.textContent = '⏳ Opening Google auth…';
+  status.style.color = 'var(--muted)';
+  try {
+    geeTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/earthengine.readonly',
+      callback: resp => {
+        if (resp.error) {
+          status.textContent = '❌ ' + resp.error;
+          status.style.color = '#c0392b';
+          return;
+        }
+        geeToken = resp.access_token;
+        sessionStorage.setItem('gee_token', geeToken);
+        _showGEEConnected(project);
+        if (currentLoc) runSatelliteCropAssessment(currentLoc.lat, currentLoc.lng);
+      }
+    });
+    geeTokenClient.requestAccessToken({ prompt: '' });
+  } catch(e) {
+    status.textContent = '❌ GSI not ready — wait a moment and retry';
+    status.style.color = '#c0392b';
+  }
+}
+
+function disconnectGEE() {
+  geeToken = null;
+  sessionStorage.removeItem('gee_token');
+  document.getElementById('gee-not-connected').style.display = '';
+  document.getElementById('gee-connected').style.display = 'none';
+  document.getElementById('satellite-crop-content').innerHTML =
+    '<div class="assess-empty">Connect GEE to see live satellite crop data</div>';
+}
+
+function _showGEEConnected(project) {
+  document.getElementById('gee-not-connected').style.display = 'none';
+  document.getElementById('gee-connected').style.display = '';
+  document.getElementById('gee-proj-label').textContent = project;
+}
+
+// ============================================================
+// GEE — CROP SUB-TAB SWITCHER
+// ============================================================
+function switchCropSubTab(tab) {
+  document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sub-tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('stab-btn-' + tab).classList.add('active');
+  document.getElementById('stab-' + tab).classList.add('active');
+  // If switching to satellite with active pin + GEE connected → query immediately
+  if (tab === 'satellite' && geeToken && currentLoc) {
+    runSatelliteCropAssessment(currentLoc.lat, currentLoc.lng);
+  }
+}
+
+// ============================================================
+// GEE — MODIS MOD13Q1 NDVI EXPRESSION (REST API serialised format)
+// ============================================================
+// Returns the most recent 16-day MODIS NDVI composite for a 10 km
+// circle around (lat, lng). Bands NDVI + EVI (scale factor 0.0001).
+function _buildNdviExpr(lat, lng) {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 64); // 4 composites back, ensures data
+  const startStr = start.toISOString().slice(0, 10);
+  const endStr   = today.toISOString().slice(0, 10);
+  return {
+    result: "result",
+    values: {
+      // 1. reduceRegion → returns {NDVI: mean, EVI: mean}
+      result: { functionInvocationValue: { functionName: "Image.reduceRegion", arguments: {
+        image:    { valueReference: "selBands" },
+        geometry: { valueReference: "circle" },
+        reducer:  { valueReference: "reducer" },
+        scale:    { constantValue: 250 },
+        bestEffort: { constantValue: true }
+      }}},
+      // 2. Select NDVI + EVI bands from latest image
+      selBands: { functionInvocationValue: { functionName: "Image.select", arguments: {
+        input:        { valueReference: "latestImg" },
+        bandSelectors: { constantValue: ["NDVI", "EVI"] }
+      }}},
+      // 3. First image (most recent) after sorting desc by date
+      latestImg: { functionInvocationValue: { functionName: "Collection.first", arguments: {
+        collection: { valueReference: "sorted" }
+      }}},
+      sorted: { functionInvocationValue: { functionName: "Collection.sort", arguments: {
+        collection: { valueReference: "filtered" },
+        property:   { constantValue: "system:time_start" },
+        ascending:  { constantValue: false }
+      }}},
+      // 4. Filter collection to date range
+      filtered: { functionInvocationValue: { functionName: "ImageCollection.filterDate", arguments: {
+        collection: { valueReference: "coll" },
+        start: { constantValue: startStr },
+        end:   { constantValue: endStr }
+      }}},
+      // 5. Load MODIS MOD13Q1
+      coll: { functionInvocationValue: { functionName: "ImageCollection.load", arguments: {
+        id: { constantValue: "MODIS/061/MOD13Q1" }
+      }}},
+      // 6. 10 km circle around district centroid
+      circle: { functionInvocationValue: { functionName: "Geometry.buffer", arguments: {
+        geometry: { constantValue: { type: "Point", coordinates: [lng, lat] } },
+        distance: { constantValue: 10000 },
+        maxError: { constantValue: 100 }
+      }}},
+      reducer: { functionInvocationValue: { functionName: "Reducer.mean", arguments: {} }}
+    }
+  };
+}
+
+// ============================================================
+// GEE — QUERY ONE DISTRICT → { NDVI, EVI } or null
+// ============================================================
+async function _queryDistrictNDVI(lat, lng) {
+  if (!geeToken || !geeProject) return null;
+  try {
+    const res = await fetch(
+      `https://earthengine.googleapis.com/v1/projects/${geeProject}/value:compute`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + geeToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expression: _buildNdviExpr(lat, lng) })
+      }
+    );
+    if (res.status === 401) {
+      // Token expired — reset so UI shows reconnect
+      geeToken = null;
+      sessionStorage.removeItem('gee_token');
+      document.getElementById('gee-not-connected').style.display = '';
+      document.getElementById('gee-connected').style.display = 'none';
+      return null;
+    }
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.result || null; // { NDVI: <raw>, EVI: <raw> }
+  } catch(e) { return null; }
+}
+
+// ============================================================
+// GEE — NDVI VALUE → CROP INFERENCE + ACTIVITY LABEL
+// ============================================================
+// MODIS NDVI is stored scaled × 0.0001, so raw 5000 = NDVI 0.50
+function _inferCrop(ndviRaw, eviRaw, month) {
+  const ndvi = (ndviRaw || 0) / 10000;
+  const evi  = (eviRaw  || 0) / 10000;
+
+  // Which crops are at peak / harvest / sowing this month?
+  const peakNow    = Object.entries(CROP_CALENDAR).filter(([,c]) => c.peak.includes(month)).map(([n,c]) => c.emoji + ' ' + n);
+  const harvestNow = Object.entries(CROP_CALENDAR).filter(([,c]) => c.harvest.includes(month)).map(([n,c]) => c.emoji + ' ' + n);
+  const sowNow     = Object.entries(CROP_CALENDAR).filter(([,c]) => c.sow.includes(month)).map(([n,c]) => c.emoji + ' ' + n);
+
+  let activity, color, inferred;
+  if (ndvi >= 0.6) {
+    activity = 'Dense crop';   color = '#006837';
+    inferred = peakNow.slice(0,2).join(' · ') || '🎋 Sugarcane / Irrigated';
+  } else if (ndvi >= 0.4) {
+    activity = 'Active crop';  color = '#31A354';
+    inferred = peakNow.slice(0,2).join(' · ') || harvestNow.slice(0,1).join('') || 'Field crop';
+  } else if (ndvi >= 0.25) {
+    activity = 'Moderate';     color = '#78C679';
+    inferred = harvestNow.slice(0,1).join('') || sowNow.slice(0,1).join('') || 'Mixed / transitional';
+  } else if (ndvi >= 0.10) {
+    activity = 'Sparse';       color = '#ADDD8E';
+    inferred = 'Post-harvest / Fallow';
+  } else {
+    activity = 'Bare / Dry';   color = '#C4956A';
+    inferred = 'No active crop';
+  }
+  return { ndvi, evi, activity, color, inferred };
+}
+
+// ============================================================
+// GEE — FULL SATELLITE CROP ASSESSMENT FOR SEARCHED LOCATION
+// ============================================================
+async function runSatelliteCropAssessment(lat, lng) {
+  if (!geeToken || !geeProject) return;
+
+  const myToken = ++satCropToken;
+  const el = document.getElementById('satellite-crop-content');
+  if (!el) return;
+
+  const nearDistricts = DISTRICTS
+    .map(d => ({ ...d, km: haversine(lat, lng, d.lat, d.lng) }))
+    .filter(d => d.km <= currentRadius)
+    .sort((a, b) => a.km - b.km)
+    .slice(0, 10);
+
+  if (nearDistricts.length === 0) {
+    el.innerHTML = '<div class="assess-empty">No districts within selected radius</div>';
+    return;
+  }
+
+  el.innerHTML = `<div class="assess-empty" style="color:var(--muted)">
+    ⏳ Querying MODIS NDVI for ${nearDistricts.length} district${nearDistricts.length > 1 ? 's' : ''}…
+    <span style="font-size:0.6rem;display:block;margin-top:4px">First query may take 5–10 s</span>
+  </div>`;
+
+  const month  = new Date().getMonth() + 1;
+  const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Fire all district queries in parallel
+  const results = await Promise.all(
+    nearDistricts.map(async d => {
+      const r = await _queryDistrictNDVI(d.lat, d.lng);
+      return { ...d, raw: r };
+    })
+  );
+
+  if (myToken !== satCropToken) return; // superseded by newer search
+
+  // APY top crop per district (from our ground-truth data)
+  const apyTop = {};
+  nearDistricts.forEach(d => {
+    const best = Object.entries(CROPS)
+      .map(([name, crop]) => ({ name, emoji: crop.emoji, prod: crop.districts[d.name]?.prod || 0 }))
+      .filter(c => c.prod > 0)
+      .sort((a, b) => b.prod - a.prod)[0];
+    apyTop[d.name] = best;
+  });
+
+  const noDataCount = results.filter(r => !r.raw || r.raw.NDVI == null).length;
+
+  const rows = results.map(d => {
+    const apy = apyTop[d.name];
+    const apyCell = apy ? `${apy.emoji} ${apy.name}` : '—';
+
+    if (!d.raw || d.raw.NDVI == null) {
+      return `<tr>
+        <td style="font-weight:600">${d.name}</td>
+        <td colspan="3" style="color:var(--muted);font-style:italic;font-size:0.7rem">No data / cloud</td>
+        <td style="font-size:0.7rem;color:var(--mid)">${apyCell}</td>
+      </tr>`;
+    }
+    const inf = _inferCrop(d.raw.NDVI, d.raw.EVI, month);
+    // Compare: does satellite activity match APY expectation for this month?
+    const peakAPY = apy && CROP_CALENDAR[apy.name]?.peak.includes(month);
+    const matchHint = peakAPY && inf.ndvi >= 0.35
+      ? `<span title="Satellite activity matches APY crop calendar" style="color:var(--forest)">✓</span>`
+      : '';
+    return `<tr style="cursor:pointer" onclick="selectDistrict('${d.name}')">
+      <td style="font-weight:600">${d.name}</td>
+      <td><span class="ndvi-chip" style="background:${inf.color}">${inf.ndvi.toFixed(2)}</span></td>
+      <td style="font-size:0.7rem;color:${inf.color};font-weight:600">${inf.activity}</td>
+      <td style="font-size:0.72rem;color:var(--mid)">${inf.inferred}</td>
+      <td style="font-size:0.7rem;color:var(--mid)">${apyCell} ${matchHint}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:0.62rem;color:var(--muted)">📅 MODIS MOD13Q1 · 250 m · ${MONTHS[month]} ${new Date().getFullYear()} · latest 16-day composite</span>
+      <button class="gee-btn-sm" onclick="runSatelliteCropAssessment(${lat},${lng})">↻ Refresh</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>District</th>
+            <th>NDVI</th>
+            <th>Activity</th>
+            <th>Inferred Crop (live)</th>
+            <th>APY 2021-22 leader</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${noDataCount > 0 ? `<div style="font-size:0.62rem;color:#c0392b;margin-top:5px">⚠️ ${noDataCount} district(s) returned no data — cloud cover or outside MODIS window</div>` : ''}
+    <div class="sat-note">
+      NDVI scale: <span style="color:#006837">■</span> &ge;0.6 Dense &nbsp;
+      <span style="color:#31A354">■</span> 0.4 Active &nbsp;
+      <span style="color:#78C679">■</span> 0.25 Moderate &nbsp;
+      <span style="color:#ADDD8E">■</span> 0.1 Sparse &nbsp;
+      <span style="color:#C4956A">■</span> Bare<br>
+      Data: NASA MODIS Terra · processed via Google Earth Engine REST API<br>
+      ✓ = satellite activity matches APY crop calendar for this season
+    </div>
+  `;
+}
 </script>
 </body>
 </html>
