@@ -767,29 +767,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
 
         <!-- ── Satellite sub-panel ── -->
         <div class="sub-tab-panel" id="stab-sat">
-          <!-- GEE connect section -->
+          <!-- GEE connect — credentials baked in, one-click auth -->
           <div class="gee-box">
-            <div style="font-size:0.75rem;font-weight:700;color:var(--forest);margin-bottom:8px;">🛰️ Google Earth Engine</div>
-            <div id="gee-not-connected">
-              <input id="gee-client-id" class="gee-input" placeholder="OAuth 2.0 Client ID (Google Cloud Console)" />
-              <input id="gee-project-id" class="gee-input" placeholder="GEE Project ID  (e.g. ee-yourname)" />
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                <button class="gee-btn-primary" onclick="connectGEE()">Connect GEE</button>
-                <span id="gee-connect-status" style="font-size:0.62rem;color:var(--muted);"></span>
-              </div>
-              <details>
-                <summary style="font-size:0.6rem;color:var(--mid);cursor:pointer;margin-top:2px;">Setup — 5 min one-time</summary>
-                <div style="font-size:0.58rem;color:var(--muted);line-height:1.65;margin-top:5px;">
-                  1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--forest)">Google Cloud Console</a> → Create OAuth 2.0 Client ID (Web App)<br>
-                  2. Authorized JS origins: <code>https://gattooze.github.io</code><br>
-                  3. Enable <b>Earth Engine API</b> on that project<br>
-                  4. Paste Client ID + project name above → Connect
-                </div>
-              </details>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-size:0.75rem;font-weight:700;color:var(--forest);">🛰️ Google Earth Engine</div>
+              <span style="font-size:0.58rem;color:var(--muted);">MODIS · 250 m · 16-day</span>
+            </div>
+            <div id="gee-not-connected" style="display:flex;align-items:center;gap:10px;">
+              <button class="gee-btn-primary" onclick="connectGEE()" style="flex:1;padding:7px 0;font-size:0.78rem;">
+                🔑 Connect with Google
+              </button>
+              <span id="gee-connect-status" style="font-size:0.62rem;color:var(--muted);"></span>
             </div>
             <div id="gee-connected" style="display:none;">
-              <div class="gee-badge">✅ Connected · <span id="gee-proj-label" style="font-family:var(--font-mono);font-size:0.65rem"></span>
-                <button class="gee-btn-sm" onclick="disconnectGEE()" style="margin-left:auto">Disconnect</button>
+              <div class="gee-badge">
+                ✅ GEE connected
+                <button class="gee-btn-sm" onclick="disconnectGEE()" style="margin-left:auto;">Disconnect</button>
               </div>
             </div>
           </div>
@@ -2651,38 +2644,31 @@ document.addEventListener("DOMContentLoaded", init);
 
 // ============================================================
 // GEE — STATE + OAUTH (Google Identity Services)
+// Credentials are baked in — user just clicks "Connect with Google"
+// Client secret is NOT included (not needed for browser OAuth)
 // ============================================================
-let geeToken   = sessionStorage.getItem('gee_token')      || null;
-let geeProject = sessionStorage.getItem('gee_project')    || '';
+const GEE_CLIENT_ID = '1028104801051-g0e64rdktrgi1ojn9cemomtauqmhugm0.apps.googleusercontent.com';
+const GEE_PROJECT   = 'biobrain-496808';
+
+let geeToken       = sessionStorage.getItem('gee_token') || null;
 let geeTokenClient = null;
 let satCropToken   = 0; // stale-render guard for satellite queries
 
 function initGEEState() {
-  if (geeToken && geeProject) {
-    _showGEEConnected(geeProject);
-    const savedClientId = sessionStorage.getItem('gee_client_id');
-    if (savedClientId) document.getElementById('gee-client-id').value = savedClientId;
-    document.getElementById('gee-project-id').value = geeProject;
+  if (geeToken) {
+    _showGEEConnected();
+    // If there's a saved location, auto-run satellite assessment
+    if (currentLoc) runSatelliteCropAssessment(currentLoc.lat, currentLoc.lng);
   }
 }
 
 function connectGEE() {
-  const clientId = document.getElementById('gee-client-id').value.trim();
-  const project  = document.getElementById('gee-project-id').value.trim();
-  const status   = document.getElementById('gee-connect-status');
-  if (!clientId || !project) {
-    status.textContent = '⚠️ Enter Client ID and Project ID';
-    status.style.color = '#c0392b';
-    return;
-  }
-  sessionStorage.setItem('gee_project', project);
-  sessionStorage.setItem('gee_client_id', clientId);
-  geeProject = project;
-  status.textContent = '⏳ Opening Google auth…';
+  const status = document.getElementById('gee-connect-status');
+  status.textContent = '⏳ Opening Google sign-in…';
   status.style.color = 'var(--muted)';
   try {
     geeTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
+      client_id: GEE_CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/earthengine.readonly',
       callback: resp => {
         if (resp.error) {
@@ -2692,13 +2678,13 @@ function connectGEE() {
         }
         geeToken = resp.access_token;
         sessionStorage.setItem('gee_token', geeToken);
-        _showGEEConnected(project);
+        _showGEEConnected();
         if (currentLoc) runSatelliteCropAssessment(currentLoc.lat, currentLoc.lng);
       }
     });
     geeTokenClient.requestAccessToken({ prompt: '' });
   } catch(e) {
-    status.textContent = '❌ GSI not ready — wait a moment and retry';
+    status.textContent = '❌ GSI not loaded yet — wait 2 s and retry';
     status.style.color = '#c0392b';
   }
 }
@@ -2709,13 +2695,12 @@ function disconnectGEE() {
   document.getElementById('gee-not-connected').style.display = '';
   document.getElementById('gee-connected').style.display = 'none';
   document.getElementById('satellite-crop-content').innerHTML =
-    '<div class="assess-empty">Connect GEE to see live satellite crop data</div>';
+    '<div class="assess-empty">📍 Search a location then connect GEE to see live satellite crop data</div>';
 }
 
-function _showGEEConnected(project) {
+function _showGEEConnected() {
   document.getElementById('gee-not-connected').style.display = 'none';
   document.getElementById('gee-connected').style.display = '';
-  document.getElementById('gee-proj-label').textContent = project;
 }
 
 // ============================================================
@@ -2793,10 +2778,10 @@ function _buildNdviExpr(lat, lng) {
 // GEE — QUERY ONE DISTRICT → { NDVI, EVI } or null
 // ============================================================
 async function _queryDistrictNDVI(lat, lng) {
-  if (!geeToken || !geeProject) return null;
+  if (!geeToken) return null;
   try {
     const res = await fetch(
-      `https://earthengine.googleapis.com/v1/projects/${geeProject}/value:compute`,
+      `https://earthengine.googleapis.com/v1/projects/${GEE_PROJECT}/value:compute`,
       {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + geeToken, 'Content-Type': 'application/json' },
@@ -2854,7 +2839,7 @@ function _inferCrop(ndviRaw, eviRaw, month) {
 // GEE — FULL SATELLITE CROP ASSESSMENT FOR SEARCHED LOCATION
 // ============================================================
 async function runSatelliteCropAssessment(lat, lng) {
-  if (!geeToken || !geeProject) return;
+  if (!geeToken) return;
 
   const myToken = ++satCropToken;
   const el = document.getElementById('satellite-crop-content');
