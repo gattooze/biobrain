@@ -735,7 +735,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--forest);color:var(--ink);
         <!-- Sub-tab nav -->
         <div class="sub-tab-nav">
           <button class="sub-tab-btn active" id="stab-btn-apy" onclick="switchCropSubTab('apy')">📊 APY 2021-22</button>
-          <button class="sub-tab-btn" id="stab-btn-sat" onclick="switchCropSubTab('satellite')">🛰️ Satellite Live</button>
+          <button class="sub-tab-btn" id="stab-btn-sat" onclick="switchCropSubTab('sat')">🛰️ Satellite Live</button>
         </div>
 
         <!-- ── APY sub-panel ── -->
@@ -1976,7 +1976,7 @@ async function updateSiteAssessment(lat, lng, name, sub) {
   renderIndTable(document.querySelector("#ind-filters .f-btn.active")?.dataset?.cat || "");
 
   // Auto-run satellite assessment if GEE connected and satellite tab is active
-  if (geeToken && document.getElementById('stab-sat')?.classList.contains('active')) {
+  if (geeToken && document.getElementById('stab-sat')?.classList.contains('active')) { // 'sat' is the correct panel ID
     runSatelliteCropAssessment(lat, lng);
   }
 }
@@ -2712,7 +2712,7 @@ function switchCropSubTab(tab) {
   document.getElementById('stab-btn-' + tab).classList.add('active');
   document.getElementById('stab-' + tab).classList.add('active');
   // If switching to satellite with active pin + GEE connected → query immediately
-  if (tab === 'satellite' && geeToken && currentLoc) {
+  if (tab === 'sat' && geeToken && currentLoc) {
     runSatelliteCropAssessment(currentLoc.lat, currentLoc.lng);
   }
 }
